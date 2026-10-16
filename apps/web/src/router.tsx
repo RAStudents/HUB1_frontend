@@ -5,6 +5,7 @@ import { User, AuthResponse, AuthMeResponse } from './api/types';
 
 import { LoginPage } from './auth/LoginPage';
 import { RegisterPage } from './auth/RegisterPage';
+import { YandexCallbackPage } from './auth/YandexCallbackPage';
 import { ListPage } from './datasets/ListPage';
 import { CreatePage } from './datasets/CreatePage';
 import { MembersPage } from './datasets/MembersPage';
@@ -14,6 +15,7 @@ interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, displayName: string) => Promise<void>;
+  loginWithYandex: (code: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -78,6 +80,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     saveAuthResponse(res.data);
   };
 
+  const loginWithYandex = async (code: string) => {
+    const res = await apiClient.get<AuthResponse>('/auth/yandex/callback', { params: { code } });
+    saveAuthResponse(res.data);
+  };
+
   const logout = () => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('auth_user');
@@ -85,7 +92,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, register, loginWithYandex, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
@@ -147,6 +154,7 @@ const GuestRoute = ({ children }: { children: ReactNode }) => {
 export const router = createBrowserRouter([
   { path: '/login', element: <GuestRoute><LoginPage /></GuestRoute> },
   { path: '/register', element: <GuestRoute><RegisterPage /></GuestRoute> },
+  { path: '/auth/yandex/callback', element: <YandexCallbackPage /> },
   {
     path: '/',
     element: <ProtectedRoute><Layout /></ProtectedRoute>,

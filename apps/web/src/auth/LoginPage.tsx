@@ -1,12 +1,15 @@
 ﻿// apps/web/src/auth/LoginPage.tsx
 import { useState, FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { apiClient } from '../api/client';
+import { YandexLoginResponse } from '../api/types';
 import { useAuth } from '../router';
 
 export const LoginPage = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [isYandexLoading, setIsYandexLoading] = useState(false);
     const { login } = useAuth();
     const navigate = useNavigate();
 
@@ -21,6 +24,30 @@ export const LoginPage = () => {
         }
     };
 
+    const handleYandexLogin = async () => {
+        setError('');
+        setIsYandexLoading(true);
+        try {
+            const response = await apiClient.get<YandexLoginResponse>('/auth/yandex/login');
+            const authorizationUrl = new URL(response.data.auth_url);
+            const state = Array.from(
+                crypto.getRandomValues(new Uint8Array(32)),
+                (byte) => byte.toString(16).padStart(2, '0'),
+            ).join('');
+
+            sessionStorage.setItem('yandex_oauth_state', state);
+            authorizationUrl.searchParams.set(
+                'redirect_uri',
+                `${window.location.origin}/auth/yandex/callback`,
+            );
+            authorizationUrl.searchParams.set('state', state);
+            window.location.assign(authorizationUrl.toString());
+        } catch (err: any) {
+            setError(err.response?.data?.detail || 'Не удалось начать вход через Яндекс');
+            setIsYandexLoading(false);
+        }
+    };
+
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-100">
             <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
@@ -32,8 +59,13 @@ export const LoginPage = () => {
                     <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700">Войти</button>
                 </form>
                 <div className="mt-4">
-                    <button className="w-full bg-yellow-400 text-black py-2 rounded-md hover:bg-yellow-500 flex items-center justify-center gap-2">
-                        Войти через Яндекс ID
+                    <button
+                        type="button"
+                        onClick={handleYandexLogin}
+                        disabled={isYandexLoading}
+                        className="w-full bg-yellow-400 text-black py-2 rounded-md hover:bg-yellow-500 flex items-center justify-center gap-2 disabled:opacity-60"
+                    >
+                        {isYandexLoading ? 'Переход к Яндексу...' : 'Войти через Яндекс ID'}
                     </button>
                 </div>
                 <p className="text-center text-sm text-gray-600 mt-6">

@@ -18,6 +18,10 @@ export interface AuthMeResponse {
   user_id: number | string;
 }
 
+export interface YandexLoginResponse {
+  auth_url: string;
+}
+
 export type Task = 'detect' | 'obb' | 'segment';
 export type Role = 'owner' | 'labeler' | 'observer';
 

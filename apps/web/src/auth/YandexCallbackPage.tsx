@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../router';
+import { useAuth } from './AuthContext';
+import { AuthLayout } from './AuthLayout';
 
 export const YandexCallbackPage = () => {
   const { loginWithYandex } = useAuth();
@@ -50,23 +51,15 @@ export const YandexCallbackPage = () => {
   }, [loginWithYandex, navigate, search]);
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-      <section className="w-full max-w-md rounded-lg bg-white p-8 text-center shadow-md">
-        {error ? (
-          <>
-            <h1 className="mb-3 text-xl font-semibold text-gray-900">Вход не выполнен</h1>
-            <p className="mb-5 text-sm text-red-700">{error}</p>
-            <Link to="/login" className="text-blue-600 hover:underline">
-              Вернуться ко входу
-            </Link>
-          </>
-        ) : (
-          <>
-            <h1 className="mb-3 text-xl font-semibold text-gray-900">Входим через Яндекс</h1>
-            <p className="text-sm text-gray-600">Проверяем авторизацию...</p>
-          </>
-        )}
-      </section>
-    </main>
+    <AuthLayout title={error ? 'Вход не выполнен' : 'Входим через Яндекс'} description="">
+      {error ? (
+        <>
+          <div className="auth-alert" role="alert">{error}</div>
+          <Link to="/login" className="auth-callback-link">Вернуться ко входу</Link>
+        </>
+      ) : (
+        <p className="auth-callback-copy">Проверяем авторизацию...</p>
+      )}
+    </AuthLayout>
   );
 };

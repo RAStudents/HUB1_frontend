@@ -56,93 +56,98 @@ export const CreatePage = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="mb-6">
-        <Link to="/" className="text-blue-600 hover:underline text-sm">← Назад к списку</Link>
-        <h1 className="text-3xl font-bold text-gray-800 mt-2">Создать датасет</h1>
-        <p className="text-gray-500 mt-1">Задайте параметры нового проекта разметки</p>
-      </div>
+    <section className="create-page">
+      <Link to="/" className="page-back">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6M9 12h12" /></svg>
+        Назад к списку
+      </Link>
+      <header className="page-heading page-heading--stacked">
+        <h1>Создать датасет</h1>
+        <p>Задайте параметры нового проекта разметки</p>
+      </header>
 
-      <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 space-y-6">
+      <form onSubmit={handleSubmit} className="form-surface create-form">
         {error && (
-          <div className="bg-red-100 text-red-700 p-3 rounded text-sm">{error}</div>
+          <div className="form-alert" role="alert">{error}</div>
         )}
 
-        {/* Название */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Название</label>
+        <div className="form-field">
+          <label className="form-label" htmlFor="dataset-name">Название</label>
           <input
+            id="dataset-name"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Например, cats-and-dogs"
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="form-input"
           />
         </div>
 
-        {/* Тип задачи */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Тип задачи</label>
-          <div className="grid grid-cols-3 gap-3">
+        <div className="form-section">
+          <span className="form-section__title">Тип задачи</span>
+          <div className="task-choice-grid" role="group" aria-label="Тип задачи">
             {(['detect', 'obb', 'segment'] as Task[]).map((t) => (
               <button
                 key={t}
                 type="button"
                 onClick={() => setTask(t)}
-                className={`px-4 py-3 rounded-md border-2 text-sm font-medium transition ${
-                  task === t
-                    ? 'border-blue-600 bg-blue-50 text-blue-700'
-                    : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                }`}
+                className={task === t ? 'task-choice is-active' : 'task-choice'}
+                aria-pressed={task === t}
               >
-                {t === 'detect' && ' Bounding Box'}
-                {t === 'obb' && '🔄 OBB (повёрнутые)'}
-                {t === 'segment' && '🔷 Polygon'}
+                <span className="task-choice__top">
+                  <span className="task-choice__icon">
+                    {t === 'detect' && <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="1" /></svg>}
+                    {t === 'obb' && <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 9 9-9 9-9-9z" /></svg>}
+                    {t === 'segment' && <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 9 5v8l-9 5-9-5V8z" /></svg>}
+                  </span>
+                  <span className="task-choice__radio" />
+                </span>
+                <strong>{t === 'detect' ? 'Bounding Box' : t === 'obb' ? 'OBB (повёрнутые)' : 'Polygon'}</strong>
+                <small>{t === 'detect' ? 'Обычные прямоугольные рамки вокруг объектов' : t === 'obb' ? 'Рамки с поворотом под угол объекта' : 'Точный контур объекта по точкам'}</small>
               </button>
             ))}
           </div>
-          <p className="text-xs text-gray-500 mt-2">
-            {task === 'detect' && 'Обычные прямоугольные рамки вокруг объектов'}
-            {task === 'obb' && 'Повёрнутые рамки для объектов под углом'}
-            {task === 'segment' && 'Точные контуры объектов (полигоны)'}
-          </p>
         </div>
 
-        {/* Приватность */}
-        <div className="flex items-center gap-3">
+        <label className="privacy-option" htmlFor="private">
           <input
             type="checkbox"
             id="private"
             checked={isPrivate}
             onChange={(e) => setIsPrivate(e.target.checked)}
-            className="w-4 h-4 text-blue-600 rounded"
           />
-          <label htmlFor="private" className="text-sm text-gray-700">
-            Приватный датасет (доступ только у приглашённых)
-          </label>
-        </div>
+          <span>
+            <strong>Приватный датасет</strong>
+            <small>Доступ только у приглашённых участников</small>
+          </span>
+        </label>
 
-        {/* Классы */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Классы объектов</label>
-          
-          {/* Переключатель режима */}
-          <div className="flex gap-2 mb-3">
+        <div className="form-section">
+          <div className="class-section__heading">
+            <span className="form-section__title">Классы объектов</span>
+            <div className="form-mode" role="tablist" aria-label="Способ задания классов">
             <button
               type="button"
               onClick={() => setInputMode('manual')}
-              className={`px-3 py-1 rounded text-sm ${inputMode === 'manual' ? 'bg-blue-100 text-blue-700' : 'text-gray-600'}`}
+              className={inputMode === 'manual' ? 'form-mode__button is-active' : 'form-mode__button'}
+              role="tab"
+              aria-selected={inputMode === 'manual'}
             >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6 4 4M4 20l4-1 11-11-3-3L5 16zM4 20h16" /></svg>
               Ввести вручную
             </button>
             <button
               type="button"
               onClick={() => setInputMode('yaml')}
-              className={`px-3 py-1 rounded text-sm ${inputMode === 'yaml' ? 'bg-blue-100 text-blue-700' : 'text-gray-600'}`}
+              className={inputMode === 'yaml' ? 'form-mode__button is-active' : 'form-mode__button'}
+              role="tab"
+              aria-selected={inputMode === 'yaml'}
             >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m-4 4 4-4 4 4M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4" /></svg>
               Загрузить data.yaml
             </button>
+          </div>
           </div>
 
           {inputMode === 'manual' ? (
@@ -152,9 +157,10 @@ export const CreatePage = () => {
                 onChange={(e) => setManualClasses(e.target.value)}
                 placeholder={"cat\ndog\nbird"}
                 rows={5}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                aria-label="Классы, по одному на строку"
+                className="form-textarea"
               />
-              <p className="text-xs text-gray-500 mt-1">По одному классу на строку. Порядок = индекс в YOLO.</p>
+              <p className="form-hint"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v5m0-8h.01" /></svg>По одному классу на строку. Порядок = индекс в YOLO.</p>
             </div>
           ) : (
             <div>
@@ -163,17 +169,18 @@ export const CreatePage = () => {
                 type="file"
                 accept=".yaml,.yml"
                 onChange={handleYamlUpload}
-                className="hidden"
+                className="file-input-hidden"
               />
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50"
+                className="yaml-upload"
               >
-                📄 Выбрать файл data.yaml
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m-4 4 4-4 4 4M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4" /></svg>
+                Выбрать файл data.yaml
               </button>
               {yamlContent && (
-                <pre className="mt-3 p-3 bg-gray-50 rounded text-xs overflow-auto max-h-40 border">
+                <pre className="yaml-preview">
                   {yamlContent}
                 </pre>
               )}
@@ -182,23 +189,23 @@ export const CreatePage = () => {
         </div>
 
         {/* Кнопки */}
-        <div className="flex gap-3 pt-4 border-t">
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="flex-1 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 font-medium disabled:opacity-50"
-          >
-            {isLoading ? 'Создание...' : 'Создать датасет'}
-          </button>
+        <div className="form-actions">
           <button
             type="button"
             onClick={() => navigate('/')}
-            className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+            className="button button--outline"
           >
             Отмена
           </button>
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="button button--primary"
+          >
+            {isLoading ? 'Создание...' : 'Создать датасет'}
+          </button>
         </div>
       </form>
-    </div>
+    </section>
   );
 };

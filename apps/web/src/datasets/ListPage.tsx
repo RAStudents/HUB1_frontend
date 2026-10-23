@@ -1,7 +1,8 @@
 // apps/web/src/datasets/ListPage.tsx
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth, useRole } from '../router';
+import { useAuth } from '../auth/AuthContext';
+import { useRole } from '../auth/roles';
 import { apiClient } from '../api/client';
 import { Dataset } from '../api/types';
 

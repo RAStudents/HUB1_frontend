@@ -1,7 +1,8 @@
 // apps/web/src/datasets/MembersPage.tsx
 import { useState, FormEvent, useEffect } from 'react';
 import { useParams, useNavigate, Link, Navigate } from 'react-router-dom';
-import { useAuth, useRole } from '../router';
+import { useAuth } from '../auth/AuthContext';
+import { useRole } from '../auth/roles';
 import { apiClient } from '../api/client';
 import { Member, Role } from '../api/types';
 
@@ -127,131 +128,113 @@ export const MembersPage = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="mb-6">
-        <Link to="/" className="text-blue-600 hover:underline text-sm">
-          ← Назад к списку
-        </Link>
-        <h1 className="text-3xl font-bold text-gray-800 mt-2">
-          Участники датасета
-        </h1>
-        <p className="text-gray-500 mt-1">Управление доступом и приглашения</p>
-      </div>
+    <section className="members-page">
+      <Link to="/" className="page-back">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6M9 12h12" /></svg>
+        Назад к списку
+      </Link>
+      <header className="page-heading page-heading--stacked">
+        <h1>Участники датасета</h1>
+        <p className="members-heading__dataset">
+          <strong>Cats and Dogs</strong><span>·</span><span>Управление доступом и приглашения</span>
+        </p>
+      </header>
 
-      <div className="space-y-6">
-        {/* Форма приглашения */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">
-            Пригласить участника
-          </h2>
+      <div className="members-layout">
+        <div className="members-main">
+          <section className="panel-surface members-invite">
+            <h2 className="panel-heading">Пригласить участника</h2>
+            <p className="panel-subtitle">Укажите почту человека и выберите роль в этом датасете</p>
+            {error && <div className="form-alert" role="alert">{error}</div>}
+            {success && <div className="form-alert members-success" role="status">{success}</div>}
+            <form onSubmit={handleInvite} className="invite-form">
+              <div className="invite-input-wrap">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m4 7 8 6 8-6" /></svg>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="email@example.com"
+                  aria-label="Email участника"
+                  required
+                  className="form-input"
+                />
+              </div>
+              <select value={role} onChange={(e) => setRole(e.target.value as Role)} className="form-select" aria-label="Роль участника">
+                <option value="labeler">Разметчик</option>
+                <option value="observer">Наблюдатель</option>
+              </select>
+              <button type="submit" className="button button--primary">Пригласить</button>
+            </form>
+          </section>
 
-          {error && (
-            <div className="bg-red-100 text-red-700 p-3 rounded mb-4 text-sm">
-              {error}
-            </div>
-          )}
-          {success && (
-            <div className="bg-green-100 text-green-700 p-3 rounded mb-4 text-sm">
-              {success}
-            </div>
-          )}
-
-          <form onSubmit={handleInvite} className="flex gap-3">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="email@example.com"
-              required
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as Role)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="labeler">Разметчик</option>
-              <option value="observer">Наблюдатель</option>
-            </select>
-            <button
-              type="submit"
-              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
-            >
-              Пригласить
-            </button>
-          </form>
-        </div>
-
-        {/* Список участников */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">
-            Текущие участники
-          </h2>
-
-          {isLoading ? (
-            <div className="text-center py-8 text-gray-500">Загрузка...</div>
-          ) : members.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <p>Пока нет участников. Пригласите первого по email.</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {members.map((member) => (
-                <div
-                  key={member.id}
-                  className="flex items-center justify-between p-4 border border-gray-200 rounded-md"
-                >
-                  <div>
-                    <div className="font-medium text-gray-800">
-                      {member.user.display_name}
+          <section className="panel-surface members-table">
+            <h2 className="members-table__heading">Текущие участники <span>{members.length}</span></h2>
+            {isLoading ? (
+              <div className="members-empty">Загрузка списка участников...</div>
+            ) : members.length === 0 ? (
+              <div className="members-empty">Пока нет участников. Пригласите первого по email.</div>
+            ) : (
+              <>
+                <div className="members-table__columns"><span>Пользователь</span><span>Роль</span><span /></div>
+                {members.map((member) => (
+                  <div key={member.id} className="member-row">
+                    <div className="member-info">
+                      <span className={member.role === 'owner' ? 'member-avatar member-avatar--owner' : 'member-avatar'} aria-hidden="true">
+                        {(member.user.display_name || member.user.email || 'U').slice(0, 1).toUpperCase()}
+                      </span>
+                      <span className="member-info__text">
+                        <span className="member-info__name">{member.user.display_name || member.user.email}</span>
+                        <span className="member-info__email">{member.user.email}</span>
+                      </span>
                     </div>
-                    <div className="text-sm text-gray-500">
-                      {member.user.email}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
                     <select
                       value={member.role}
-                      onChange={(e) =>
-                        handleRoleChange(member.id, e.target.value as Role)
-                      }
+                      onChange={(e) => handleRoleChange(member.id, e.target.value as Role)}
                       disabled={member.role === 'owner'}
-                      className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:bg-gray-100"
+                      className="member-select"
+                      aria-label={`Роль участника ${member.user.email}`}
                     >
                       <option value="owner">Владелец</option>
                       <option value="labeler">Разметчик</option>
                       <option value="observer">Наблюдатель</option>
                     </select>
-                    {member.role !== 'owner' && (
-                      <button
-                        onClick={() => handleRemove(member.id)}
-                        className="text-red-600 hover:text-red-800 text-sm"
-                      >
-                        Удалить
+                    {member.role !== 'owner' ? (
+                      <button type="button" className="icon-button" onClick={() => handleRemove(member.id)} aria-label={`Удалить ${member.user.email}`}>
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M5 7l1 14h12l1-14M9 7V4h6v3" /></svg>
                       </button>
-                    )}
+                    ) : <span />}
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </>
+            )}
+          </section>
         </div>
 
-        {/* Справка по ролям */}
-        <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
-          <h3 className="font-semibold text-gray-800 mb-3">Роли и права</h3>
-          <div className="space-y-2 text-sm">
-            {Object.entries(roleLabels).map(([key, label]) => (
-              <div key={key} className="flex gap-2">
-                <span className="font-medium text-gray-700 w-32">{label}:</span>
-                <span className="text-gray-600">
-                  {roleDescriptions[key as Role]}
-                </span>
+        <aside className="members-side">
+          <section className="panel-surface roles-panel">
+            <h2 className="panel-heading">Роли и права</h2>
+            <div className="role-list">
+              <div className="role-description">
+                <span className="role-description__icon role-description__icon--owner"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 14a4 4 0 1 1 3.9 4.8L7 21H4v-3l2-2-1-2ZM15 5l4 4m-2-6 4 4" /></svg></span>
+                <span><strong>{roleLabels.owner}</strong><small>Полный доступ: управление, экспорт, удаление</small></span>
               </div>
-            ))}
+              <div className="role-description">
+                <span className="role-description__icon role-description__icon--labeler"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6 4 4M4 20l4-1 11-11-3-3L5 16zM4 20h16" /></svg></span>
+                <span><strong>{roleLabels.labeler}</strong><small>Разметка и отправка на проверку</small></span>
+              </div>
+              <div className="role-description">
+                <span className="role-description__icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" /><circle cx="12" cy="12" r="2.5" /></svg></span>
+                <span><strong>{roleLabels.observer}</strong><small>Только просмотр</small></span>
+              </div>
+            </div>
+          </section>
+          <div className="members-note">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v5m0-8h.01" /></svg>
+            <span>Роль владельца нельзя изменить, а самого владельца — удалить из датасета.</span>
           </div>
-        </div>
+        </aside>
       </div>
-    </div>
+    </section>
   );
 };

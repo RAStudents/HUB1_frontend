@@ -1,42 +1,71 @@
 // apps/web/src/auth/RegisterPage.tsx
 import { useState, FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../router';
+import { useAuth } from './AuthContext';
+import { AuthField } from './AuthField';
+import { AuthLayout } from './AuthLayout';
 
 export const RegisterPage = () => {
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsSubmitting(true);
     try {
       await register(email, password, displayName);
       navigate('/');
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Ошибка регистрации');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-        <h1 className="text-3xl font-bold text-center mb-6 text-blue-600">Регистрация</h1>
-        {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4 text-sm">{error}</div>}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input type="text" placeholder="Отображаемое имя" value={displayName} onChange={e => setDisplayName(e.target.value)} required className="w-full px-3 py-2 border rounded-md" />
-          <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required className="w-full px-3 py-2 border rounded-md" />
-          <input type="password" placeholder="Пароль" value={password} onChange={e => setPassword(e.target.value)} required className="w-full px-3 py-2 border rounded-md" />
-          <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700">Создать аккаунт</button>
-        </form>
-        <p className="text-center text-sm text-gray-600 mt-6">
-          Уже есть аккаунт? <Link to="/login" className="text-blue-600 hover:underline">Войти</Link>
-        </p>
-      </div>
-    </div>
+    <AuthLayout title="Регистрация" description="Создайте аккаунт, чтобы размечать датасеты вместе с командой">
+      {error && <div className="auth-alert" role="alert">{error}</div>}
+      <form onSubmit={handleSubmit} className="auth-form">
+        <AuthField
+          id="display-name"
+          label="Отображаемое имя"
+          type="text"
+          value={displayName}
+          placeholder="Как к вам обращаться"
+          autoComplete="name"
+          onChange={setDisplayName}
+        />
+        <AuthField
+          id="email"
+          label="Email"
+          type="email"
+          value={email}
+          placeholder="you@example.com"
+          autoComplete="email"
+          onChange={setEmail}
+        />
+        <AuthField
+          id="password"
+          label="Пароль"
+          type="password"
+          value={password}
+          placeholder="Придумайте пароль"
+          autoComplete="new-password"
+          onChange={setPassword}
+        />
+        <button type="submit" className="auth-primary" disabled={isSubmitting}>
+          {isSubmitting ? 'Создаём аккаунт...' : 'Создать аккаунт'}
+        </button>
+      </form>
+      <p className="auth-switch">
+        Уже есть аккаунт? <Link to="/login">Войти</Link>
+      </p>
+    </AuthLayout>
   );
 };

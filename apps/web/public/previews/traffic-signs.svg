@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 220">
+  <rect width="420" height="116" fill="#d9e4ed" />
+  <path d="M0 116h420v42H0z" fill="#b3c5d4" />
+  <path d="M0 158h420v62H0z" fill="#606b73" />
+  <path d="M0 183h420" stroke="#f3eee5" stroke-dasharray="22 18" stroke-width="4" />
+  <path d="M92 58v103m114-92v92m106-109v109" stroke="#7a8587" stroke-width="5" />
+  <rect x="69" y="34" width="48" height="61" rx="4" fill="#fff" stroke="#267bbf" stroke-width="4" />
+  <circle cx="93" cy="65" r="17" fill="#e54647" />
+  <path d="M82 65h22" stroke="#fff" stroke-width="7" />
+  <path d="m205 34 27 48h-54z" fill="#fff" stroke="#e0a139" stroke-width="4" />
+  <path d="m205 47-11 20h22z" fill="#e54647" />
+  <rect x="67" y="17" width="55" height="18" rx="3" fill="#347fca" />
+  <text x="75" y="30" fill="#fff" font-family="Arial,sans-serif" font-size="11" font-weight="700">no_entry</text>
+  <rect x="177" y="17" width="58" height="18" rx="3" fill="#45a67b" />
+  <text x="185" y="30" fill="#fff" font-family="Arial,sans-serif" font-size="11" font-weight="700">warning</text>
+  <path d="M355 90h48v68h-48z" fill="#c8d6e0" />
+</svg>

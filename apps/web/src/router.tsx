@@ -9,6 +9,7 @@ import { YandexCallbackPage } from './auth/YandexCallbackPage';
 import { DashboardPage } from './datasets/DashboardPage';
 import { CreatePage } from './datasets/CreatePage';
 import { MembersPage } from './datasets/MembersPage';
+import { GalleryPage } from './inspect/GalleryPage'; // Импортируем страницу галереи
 
 // ============ LAYOUT ============
 const Layout = () => {
@@ -24,7 +25,7 @@ const Layout = () => {
             <span>HUB</span>
           </Link>
           <nav className="app-navigation" aria-label="Основная навигация">
-            <Link to="/" className="app-navigation__link app-navigation__link--active">Датасеты</Link>
+            <Link to="/" className="app-navigation__link">Датасеты</Link>
           </nav>
           <div className="app-account">
             <span className="app-account__email">{user?.email}</span>
@@ -70,8 +71,8 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <DashboardPage /> },
       { path: 'datasets/create', element: <CreatePage /> },
-      { path: 'datasets/:id/members', element: <MembersPage /> },
+      { path: 'datasets/:datasetId/members', element: <MembersPage /> },
+      { path: 'datasets/:datasetId/gallery', element: <GalleryPage /> }, // Динамический роут для галереи конкретного датасета
     ],
   },
 ]);
-

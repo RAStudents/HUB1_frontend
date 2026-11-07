@@ -48,8 +48,8 @@
 .form-input:focus,
 .form-select:focus,
 .form-textarea:focus {
-  border-color: var(--app-red);
-  box-shadow: 0 0 0 2px rgb(223 48 51 / 15%);
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 2px var(--app-accent-soft);
 }
 
 .task-choice-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
@@ -70,8 +70,8 @@
 }
 
 .task-choice:hover { border-color: #7d878e; }
-.task-choice.is-active { border-color: var(--app-red); background: rgb(223 48 51 / 5%); }
-.task-choice:focus-visible { outline: 2px solid #f07676; outline-offset: 2px; }
+.task-choice.is-active { border-color: var(--app-accent); background: var(--app-accent-soft); }
+.task-choice:focus-visible { outline: 2px solid #ff9a63; outline-offset: 2px; }
 .task-choice__top { display: flex; align-items: center; justify-content: space-between; }
 
 .task-choice__icon {
@@ -84,11 +84,11 @@
   color: #d7dcde;
 }
 
-.task-choice.is-active .task-choice__icon { background: #65484b; color: #ff8b86; }
+.task-choice.is-active .task-choice__icon { background: #70472f; color: #ff9a63; }
 
 .task-choice__icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
 .task-choice__radio { width: 15px; height: 15px; border: 1px solid #758087; border-radius: 50%; }
-.task-choice.is-active .task-choice__radio { border: 4px solid #f2f3f3; background: var(--app-red); }
+.task-choice.is-active .task-choice__radio { border: 4px solid #f2f3f3; background: var(--app-accent); }
 .task-choice strong { color: #e5e7e8; font-size: 13px; }
 .task-choice small { color: #aeb5b9; font-size: 11px; line-height: 1.35; }
 
@@ -103,7 +103,7 @@
   cursor: pointer;
 }
 
-.privacy-option input { width: 17px; height: 17px; accent-color: var(--app-red); }
+.privacy-option input { width: 17px; height: 17px; accent-color: var(--app-accent); }
 .privacy-option span { display: grid; gap: 4px; }
 .privacy-option strong { color: #e2e5e6; font-size: 13px; }
 .privacy-option small { color: #aab2b6; font-size: 11px; }
@@ -127,7 +127,7 @@
 }
 
 .form-mode__button.is-active { background: #596269; color: #f1f2f3; }
-.form-mode__button:focus-visible { outline: 2px solid #f07676; outline-offset: 2px; }
+.form-mode__button:focus-visible { outline: 2px solid #ff9a63; outline-offset: 2px; }
 .form-mode__button svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
 
 .form-textarea {

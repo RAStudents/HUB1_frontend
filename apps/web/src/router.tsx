@@ -10,6 +10,7 @@ import { DashboardPage } from './datasets/DashboardPage';
 import { CreatePage } from './datasets/CreatePage';
 import { MembersPage } from './datasets/MembersPage';
 import { GalleryPage } from './inspect/GalleryPage'; // Импортируем страницу галереи
+import { ProfilePage } from './profile/ProfilePage';
 
 // ============ LAYOUT ============
 const Layout = () => {
@@ -29,9 +30,9 @@ const Layout = () => {
           </nav>
           <div className="app-account">
             <span className="app-account__email">{user?.email}</span>
-            <span className="app-account__avatar" aria-hidden="true">
+            <Link to="/profile" className="app-account__avatar" aria-label="Открыть профиль" title="Профиль">
               {(user?.display_name || user?.email || 'U').slice(0, 1).toUpperCase()}
-            </span>
+            </Link>
             <span className="app-account__divider" />
             <button type="button" className="app-logout" onClick={() => { logout(); navigate('/login'); }}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3M12 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6" /></svg>
@@ -70,6 +71,7 @@ export const router = createBrowserRouter([
     element: <ProtectedRoute><Layout /></ProtectedRoute>,
     children: [
       { index: true, element: <DashboardPage /> },
+      { path: 'profile', element: <ProfilePage /> },
       { path: 'datasets/create', element: <CreatePage /> },
       { path: 'datasets/:datasetId/members', element: <MembersPage /> },
       { path: 'datasets/:datasetId/gallery', element: <GalleryPage /> }, // Динамический роут для галереи конкретного датасета

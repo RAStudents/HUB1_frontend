@@ -80,7 +80,7 @@ input { font: inherit; }
 .auth-footer { margin-top: 20px; color: #92999e; font-size: 12px; text-align: center; }
 .auth-callback-copy { color: #aeb4b8; font-size: 12px; line-height: 1.5; text-align: center; }
 .auth-callback-title { margin: 0 0 8px; color: #f0f1f2; font-size: 19px; text-align: center; }
-.auth-callback-link { display: block; margin-top: 14px; color: #f06b67; font-size: 12px; text-align: center; text-decoration: none; }
+.auth-callback-link { display: block; margin-top: 14px; color: #ff9860; font-size: 12px; text-align: center; text-decoration: none; }
 .auth-callback-link:hover { text-decoration: underline; }
 
 @media (max-width: 420px) {

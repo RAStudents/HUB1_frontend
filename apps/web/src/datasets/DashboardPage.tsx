@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
-import { useRole } from '../auth/roles';
 
 interface DatasetItem {
   id: number;
@@ -14,6 +13,8 @@ interface DatasetItem {
   images_count: number;
   cover_url?: string;
   classes: string[];
+  is_owner?: boolean;
+  my_role?: 'owner' | 'labeler' | 'observer';
 }
 
 const taskNames: Record<string, string> = {
@@ -22,12 +23,24 @@ const taskNames: Record<string, string> = {
   segment: 'Polygon',
 };
 
+const roleLabels: Record<string, string> = {
+  owner: 'Владелец',
+  labeler: 'Разметчик',
+  observer: 'Наблюдатель',
+};
+
 export const DashboardPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'my' | 'shared'>('my');
   const [datasets, setDatasets] = useState<DatasetItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [deletingDatasetId, setDeletingDatasetId] = useState<number | null>(null);
+
+  const isOwner = (dataset: DatasetItem) => Boolean(dataset.is_owner || dataset.my_role === 'owner');
+  const myDatasets = datasets.filter(isOwner);
+  const sharedDatasets = datasets.filter((dataset) => !isOwner(dataset));
+  const visibleDatasets = activeTab === 'my' ? myDatasets : sharedDatasets;
 
   useEffect(() => {
     loadDatasets();
@@ -45,6 +58,22 @@ export const DashboardPage = () => {
     }
   };
 
+  const deleteDataset = async (event: React.MouseEvent<HTMLButtonElement>, dataset: DatasetItem) => {
+    event.stopPropagation();
+    const confirmed = window.confirm(`Удалить датасет «${dataset.name}» вместе со всеми изображениями? Это действие нельзя отменить.`);
+    if (!confirmed) return;
+
+    setDeletingDatasetId(dataset.id);
+    try {
+      await apiClient.delete(`/datasets/${dataset.id}`);
+      setDatasets((current) => current.filter((item) => item.id !== dataset.id));
+    } catch (error: any) {
+      window.alert(error.response?.data?.detail || 'Не удалось удалить датасет. Попробуйте ещё раз.');
+    } finally {
+      setDeletingDatasetId(null);
+    }
+  };
+
   return (
     <section className="dataset-page">
       <header className="dataset-page__heading">
@@ -57,33 +86,132 @@ export const DashboardPage = () => {
         </button>
       </header>
 
+      <nav className="dataset-tabs" aria-label="Разделы датасетов">
+        <button
+          className={`dataset-tabs__tab${activeTab === 'my' ? ' is-active' : ''}`}
+          type="button"
+          aria-current={activeTab === 'my' ? 'page' : undefined}
+          onClick={() => setActiveTab('my')}
+        >
+          Мои датасеты <span>{myDatasets.length}</span>
+        </button>
+        <button
+          className={`dataset-tabs__tab${activeTab === 'shared' ? ' is-active' : ''}`}
+          type="button"
+          aria-current={activeTab === 'shared' ? 'page' : undefined}
+          onClick={() => setActiveTab('shared')}
+        >
+          Доступные мне <span>{sharedDatasets.length}</span>
+        </button>
+      </nav>
+
       {isLoading ? (
         <div className="dataset-empty">Загружаем датасеты...</div>
-      ) : datasets.length === 0 ? (
+      ) : visibleDatasets.length === 0 && activeTab === 'shared' ? (
         <div className="dataset-empty">
-          <h2>Пока нет датасетов</h2>
-          <p>Создайте первый датасет для разметки.</p>
+          <h2>Нет доступных датасетов</h2>
+          <p>Здесь появятся датасеты, к которым вас пригласили.</p>
         </div>
       ) : (
         <div className="dataset-grid">
-          {datasets.map((dataset) => (
-            <article className="dataset-card" key={dataset.id} onClick={() => navigate(`/datasets/${dataset.id}/gallery`)} style={{ cursor: 'pointer' }}>
-              {dataset.cover_url ? (
-                <img className="dataset-card__preview" src={dataset.cover_url} alt={dataset.name} />
-              ) : (
-                <div className="dataset-card__preview" style={{ background: '#222', display: 'grid', placeItems: 'center', color: '#666' }}>Нет превью</div>
-              )}
-              <div className="dataset-card__content">
-                <div className="dataset-card__title-row">
-                  <h2>{dataset.name}</h2>
+          {visibleDatasets.map((dataset) => {
+            const canManage = isOwner(dataset);
+            const role = canManage ? 'owner' : dataset.my_role;
+            const userRole = role ? roleLabels[role] : 'Участник';
+
+            return (
+              <article className="dataset-card" key={dataset.id} onClick={() => navigate(`/datasets/${dataset.id}/gallery`)} style={{ cursor: 'pointer' }}>
+                {dataset.cover_url ? (
+                  <img className="dataset-card__preview" src={dataset.cover_url} alt={dataset.name} />
+                ) : (
+                  <div className="dataset-card__preview" style={{ background: '#222', display: 'grid', placeItems: 'center', color: '#666' }}>Нет превью</div>
+                )}
+
+                <div className="dataset-card__content">
+                  <div className="dataset-card__title-row">
+                    <h2>{dataset.name}</h2>
+                    {dataset.is_private && (
+                      <span className="dataset-private">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11V7.5A5 5 0 0 1 12 2.5a5 5 0 0 1 5 5V11M5 11h14v10H5z" /></svg>
+                        Приватный
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="dataset-card__badges">
+                    <span className="dataset-badge">{taskNames[dataset.task] || dataset.task}</span>
+                    <span className="dataset-badge">{dataset.images_count} кадров</span>
+                  </div>
+
+                  <div className="dataset-card__role-row">
+                    <span>Ваша роль</span>
+                    <span className={`role-pill ${role === 'owner' ? 'role-pill--owner' : role === 'labeler' ? 'role-pill--labeler' : 'role-pill--observer'}`}>
+                      {userRole}
+                    </span>
+                  </div>
+
+                  <div className="dataset-card__actions">
+                    {canManage ? (
+                      <>
+                        <button
+                          type="button"
+                          className="button button--quiet dataset-card__open"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            navigate(`/datasets/${dataset.id}/members`);
+                          }}
+                        >
+                          Участники
+                        </button>
+                        <button
+                          type="button"
+                          className="button button--quiet dataset-card__open dataset-card__open--labeler"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            alert('Экспорт пока не реализован');
+                          }}
+                        >
+                          Экспорт
+                        </button>
+                        <button
+                          type="button"
+                          className="button button--quiet dataset-card__open dataset-card__delete"
+                          disabled={deletingDatasetId === dataset.id}
+                          onClick={(event) => deleteDataset(event, dataset)}
+                          aria-label={`Удалить датасет ${dataset.name}`}
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m3 3v7m6-7v7" /></svg>
+                          {deletingDatasetId === dataset.id ? 'Удаляем...' : 'Удалить'}
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="button button--quiet dataset-card__open dataset-card__open--labeler"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          navigate(`/datasets/${dataset.id}/gallery`);
+                        }}
+                      >
+                        Открыть разметку <span aria-hidden="true">→</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="dataset-card__badges">
-                  <span className="dataset-badge">{taskNames[dataset.task] || dataset.task}</span>
-                  <span className="dataset-badge">{dataset.images_count} кадров</span>
-                </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
+          {activeTab === 'my' && (
+            <button
+              type="button"
+              className="dataset-create-tile"
+              onClick={() => navigate('/datasets/create')}
+            >
+              <span className="dataset-create-tile__plus" aria-hidden="true">+</span>
+              <strong>Новый датасет</strong>
+              <span>Задайте классы и тип разметки, потом пригласите команду</span>
+            </button>
+          )}
         </div>
       )}
     </section>

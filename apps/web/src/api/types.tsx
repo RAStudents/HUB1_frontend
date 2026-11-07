@@ -16,6 +16,8 @@ export interface AuthResponse {
 
 export interface AuthMeResponse {
   user_id: number | string;
+  email?: string;
+  name?: string;
 }
 
 export interface YandexLoginResponse {

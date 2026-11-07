@@ -61,15 +61,15 @@
   bottom: -1px;
   left: 0;
   height: 3px;
-  background: var(--app-red);
+  background: var(--app-accent);
   content: "";
 }
 
-.dataset-tabs__tab.is-active span { background: #795055; }
+.dataset-tabs__tab.is-active span { background: var(--app-accent-soft); color: #ffad7d; }
 
 .dataset-tabs__tab:focus-visible,
 .dataset-create-tile:focus-visible {
-  outline: 2px solid #f07676;
+  outline: 2px solid #ff9a63;
   outline-offset: 2px;
 }
 
@@ -202,7 +202,7 @@
   font-size: 11px;
 }
 
-.role-pill--owner { background: #65484b; color: #ff9790; }
+.role-pill--owner { background: #70472f; color: #ffb07a; }
 .role-pill--labeler { background: #405b78; color: #a7caff; }
 .role-pill--observer { color: #d7dcdf; }
 
@@ -238,7 +238,20 @@
   font-size: 11px;
 }
 
-.dataset-card__open--labeler { border-color: var(--app-red); color: #ff8984; }
+.dataset-card__open--labeler { border-color: var(--app-accent); color: #ff9a63; }
+
+.dataset-card__delete {
+  border-color: #805452;
+  color: #ffaaa0;
+}
+
+.dataset-card__delete:hover:not(:disabled) {
+  border-color: #c16b62;
+  background: rgb(206 87 78 / 10%);
+  color: #ffc0b8;
+}
+
+.dataset-card__delete:disabled { cursor: wait; opacity: 0.6; }
 
 .dataset-create-tile {
   display: flex;
@@ -256,7 +269,7 @@
   cursor: pointer;
 }
 
-.dataset-create-tile:hover { border-color: #e26968; background: rgb(255 255 255 / 2%); }
+.dataset-create-tile:hover { border-color: var(--app-accent); background: rgb(255 255 255 / 2%); }
 
 .dataset-create-tile__plus {
   display: grid;
@@ -264,8 +277,8 @@
   height: 42px;
   place-items: center;
   border-radius: 50%;
-  background: #65484b;
-  color: #ff8580;
+  background: #70472f;
+  color: #ff9a63;
   font-size: 29px;
   font-weight: 300;
 }

@@ -7,7 +7,8 @@
   --app-line: #535b61;
   --app-text: #e7e9ea;
   --app-muted: #9ea6ab;
-  --app-red: #df3033;
+  --app-accent: #f06a2b;
+  --app-accent-soft: rgb(240 106 43 / 15%);
   --app-red-soft: rgb(223 48 51 / 15%);
   --app-blue: #6ca8ed;
   --app-green: #62c69a;
@@ -98,7 +99,7 @@ button { color: inherit; }
 
 .app-navigation__link:hover,
 .app-navigation__link--active {
-  border-bottom-color: var(--app-red);
+  border-bottom-color: var(--app-accent);
   color: #f0f1f2;
 }
 
@@ -128,7 +129,12 @@ button { color: inherit; }
   background: #80535a;
   color: #ffe6e6;
   font-size: 13px;
+  text-decoration: none;
+  transition: box-shadow 120ms ease, background 120ms ease;
 }
+
+.app-account__avatar:hover { background: #985e61; }
+.app-account__avatar:focus-visible { outline: 2px solid #ff9a63; outline-offset: 3px; }
 
 .app-account__divider {
   width: 1px;
@@ -213,18 +219,18 @@ button { color: inherit; }
 
 .button:focus-visible,
 .app-logout:focus-visible {
-  outline: 2px solid #f07676;
+  outline: 2px solid #ff9a63;
   outline-offset: 2px;
 }
 
 .button--primary {
   min-height: 42px;
   padding: 0 17px;
-  background: var(--app-red);
+  background: var(--app-accent);
   color: #fff;
 }
 
-.button--primary:hover { background: #ef4143; }
+.button--primary:hover { background: #ff7b3d; }
 .button--primary svg { width: 17px; height: 17px; }
 
 .page-back {

@@ -7,6 +7,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, displayName: string) => Promise<void>;
   loginWithYandex: (code: string) => Promise<void>;
+  updateProfile: (displayName: string) => Promise<User>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -33,7 +34,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           try {
             const parsedUser = JSON.parse(cachedUser) as User;
             if (parsedUser.id === userId) {
-              setUser(parsedUser);
+              const nextUser = {
+                ...parsedUser,
+                email: data.email || parsedUser.email,
+                display_name: data.name || parsedUser.display_name,
+              };
+              localStorage.setItem('auth_user', JSON.stringify(nextUser));
+              setUser(nextUser);
               return;
             }
           } catch {
@@ -41,7 +48,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         }
 
-        setUser({ id: userId, email: '', display_name: '' });
+        const nextUser = { id: userId, email: data.email || '', display_name: data.name || '' };
+        localStorage.setItem('auth_user', JSON.stringify(nextUser));
+        setUser(nextUser);
       })
       .catch(() => {
         localStorage.removeItem('access_token');
@@ -80,6 +89,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     saveAuthResponse(response.data);
   };
 
+  const updateProfile = async (displayName: string) => {
+    const response = await apiClient.patch<AuthMeResponse>('/auth/me', { name: displayName });
+    const nextUser: User = {
+      id: String(response.data.user_id),
+      email: response.data.email || user?.email || '',
+      display_name: response.data.name || user?.display_name || '',
+    };
+    localStorage.setItem('auth_user', JSON.stringify(nextUser));
+    setUser(nextUser);
+    return nextUser;
+  };
+
   const logout = () => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('auth_user');
@@ -87,7 +108,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, loginWithYandex, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, register, loginWithYandex, updateProfile, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

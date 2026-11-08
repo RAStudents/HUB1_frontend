@@ -88,7 +88,7 @@ export const DashboardPage = () => {
       }
     } catch (error) {
       window.alert(error instanceof Error ? error.message : 'Не удалось экспортировать датасет.');
-    } finally {
+  s  } finally {
       setExportingDatasetId(null);
     }
   };

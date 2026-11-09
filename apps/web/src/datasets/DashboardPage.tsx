@@ -2,7 +2,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
-import { downloadDatasetExport } from '../api/exports';
+import { downloadDatasetExport, getExportProgressLabel } from '../api/exports';
+import type { ExportProgress } from '../api/exports';
 import { useAuth } from '../auth/AuthContext';
 
 interface DatasetItem {
@@ -38,7 +39,7 @@ export const DashboardPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [deletingDatasetId, setDeletingDatasetId] = useState<number | null>(null);
   const [exportingDatasetId, setExportingDatasetId] = useState<number | null>(null);
-
+  const [exportProgress, setExportProgress] = useState<ExportProgress | null>(null);
   const isOwner = (dataset: DatasetItem) => Boolean(dataset.is_owner || dataset.my_role === 'owner');
   const myDatasets = datasets.filter(isOwner);
   const sharedDatasets = datasets.filter((dataset) => !isOwner(dataset));
@@ -80,7 +81,11 @@ export const DashboardPage = () => {
     event.stopPropagation();
     setExportingDatasetId(dataset.id);
     try {
-      const exportedSamples = await downloadDatasetExport(dataset.id, dataset.name);
+      const exportedSamples = await downloadDatasetExport(
+        dataset.id,
+        dataset.name,
+        setExportProgress,
+      );
       if (exportedSamples === 0) {
         window.alert('В датасете нет принятых кадров для экспорта.');
       } else {
@@ -90,6 +95,7 @@ export const DashboardPage = () => {
       window.alert(error instanceof Error ? error.message : 'Не удалось экспортировать датасет.');
     } finally {
       setExportingDatasetId(null);
+      setExportProgress(null);
     }
   };
 
@@ -214,6 +220,21 @@ export const DashboardPage = () => {
                       </button>
                     )}
                   </div>
+                  {exportingDatasetId === dataset.id && exportProgress && (
+                    <div className="dataset-export-progress" aria-live="polite">
+                      <div className="dataset-export-progress__label">
+                        <span>{getExportProgressLabel(exportProgress)}</span>
+                        <span>{exportProgress.progress}%</span>
+                      </div>
+                      <progress
+                        max="100"
+                        value={exportProgress.stage === 'downloading' && !exportProgress.total_download_bytes
+                          ? undefined
+                          : exportProgress.progress}
+                        aria-label="Прогресс экспорта датасета"
+                      />
+                    </div>
+                  )}
                 </div>
               </article>
             );

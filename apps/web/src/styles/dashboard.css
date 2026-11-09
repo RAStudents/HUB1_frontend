@@ -253,6 +253,33 @@
 
 .dataset-card__delete:disabled { cursor: wait; opacity: 0.6; }
 
+.dataset-export-progress {
+  margin-top: 10px;
+  color: #c9ced1;
+  font-size: 11px;
+}
+
+.dataset-export-progress__label {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.dataset-export-progress progress {
+  display: block;
+  width: 100%;
+  height: 7px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  background: #41494e;
+  accent-color: var(--app-accent);
+}
+
+.dataset-export-progress--light { color: #4b5563; }
+.dataset-export-progress--light progress { background: #e5e7eb; }
+
 .dataset-create-tile {
   display: flex;
   min-height: 330px;

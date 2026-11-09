@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { getRole } from '../auth/roles';
-import { downloadDatasetExport } from '../api/exports';
+import { downloadDatasetExport, getExportProgressLabel } from '../api/exports';
+import type { ExportProgress } from '../api/exports';
 import { Dataset } from '../api/types';
 
 export const ListPage = () => {
@@ -13,7 +14,7 @@ export const ListPage = () => {
   const [datasets, setDatasets] = useState<Dataset[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [exportingDatasetId, setExportingDatasetId] = useState<string | null>(null);
-
+  const [exportProgress, setExportProgress] = useState<ExportProgress | null>(null);
   const loadDatasets = async () => {
     setIsLoading(true);
     try {
@@ -77,7 +78,11 @@ export const ListPage = () => {
     event.stopPropagation();
     setExportingDatasetId(datasetId);
     try {
-      const exportedSamples = await downloadDatasetExport(datasetId, datasetName);
+      const exportedSamples = await downloadDatasetExport(
+        datasetId,
+        datasetName,
+        setExportProgress,
+      );
       window.alert(
         exportedSamples
           ? `Экспортировано кадров: ${exportedSamples}`
@@ -87,6 +92,7 @@ export const ListPage = () => {
       window.alert(error instanceof Error ? error.message : 'Не удалось экспортировать датасет.');
     } finally {
       setExportingDatasetId(null);
+      setExportProgress(null);
     }
   };
 
@@ -209,24 +215,41 @@ export const ListPage = () => {
                     </div>
 
                     {isOwner && (
-                      <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/datasets/${dataset.id}/members`);
-                          }}
-                          className="text-sm text-blue-600 hover:underline"
-                        >
-                          Участники →
-                        </button>
-                        {canExport && (
+                      <div className="mt-4 pt-3 border-t border-gray-100">
+                        <div className="flex justify-between items-center">
                           <button
-                            onClick={(event) => exportDataset(event, dataset.id, dataset.name)}
-                            disabled={exportingDatasetId === dataset.id}
-                            className="text-sm text-green-600 hover:underline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/datasets/${dataset.id}/members`);
+                            }}
+                            className="text-sm text-blue-600 hover:underline"
                           >
-                            {exportingDatasetId === dataset.id ? 'Экспортируем...' : 'Экспорт ↓'}
+                            Участники →
                           </button>
+                          {canExport && (
+                            <button
+                              onClick={(event) => exportDataset(event, dataset.id, dataset.name)}
+                              disabled={exportingDatasetId === dataset.id}
+                              className="text-sm text-green-600 hover:underline"
+                            >
+                              {exportingDatasetId === dataset.id ? 'Экспортируем...' : 'Экспорт ↓'}
+                            </button>
+                          )}
+                        </div>
+                        {exportingDatasetId === dataset.id && exportProgress && (
+                          <div className="dataset-export-progress dataset-export-progress--light" aria-live="polite">
+                            <div className="dataset-export-progress__label">
+                              <span>{getExportProgressLabel(exportProgress)}</span>
+                              <span>{exportProgress.progress}%</span>
+                            </div>
+                            <progress
+                              max="100"
+                              value={exportProgress.stage === 'downloading' && !exportProgress.total_download_bytes
+                                ? undefined
+                                : exportProgress.progress}
+                              aria-label="Прогресс экспорта датасета"
+                            />
+                          </div>
                         )}
                       </div>
                     )}

@@ -42,7 +42,7 @@ export const CreatePage = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [name, setName] = useState('cats-and-dogs');
+  const [name, setName] = useState('');
   const [task, setTask] = useState<Task>('detect');
   const [isPrivate, setIsPrivate] = useState(true);
   const [manualClasses, setManualClasses] = useState('cat\ndog\nbird');
@@ -125,7 +125,7 @@ export const CreatePage = () => {
             type="text"
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="Например, cats-and-dogs"
+            placeholder="Название появится из имени ZIP-архива"
             className="form-input"
           />
         </div>
@@ -208,7 +208,11 @@ export const CreatePage = () => {
                 accept=".zip,application/zip"
                 className="file-input-hidden"
                 onChange={(event) => {
-                  setSelectedFileName(event.target.files?.[0]?.name ?? '');
+                  const fileName = event.target.files?.[0]?.name ?? '';
+                  setSelectedFileName(fileName);
+                  if (fileName.toLowerCase().endsWith('.zip')) {
+                    setName(fileName.slice(0, -4));
+                  }
                   setError('');
                 }}
               />

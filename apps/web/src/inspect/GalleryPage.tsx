@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { apiClient } from '../api/client';
@@ -56,12 +57,33 @@ const GalleryImage: React.FC<{
   modal?: boolean;
 }> = ({ item, selectedClassIds, classNames, opacity, modal = false }) => {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const [viewport, setViewport] = useState({ width: window.innerWidth, height: window.innerHeight });
   const annotations = selectedClassIds.length > 0
     ? item.annotations.filter((annotation) => selectedClassIds.includes(annotation.class_id))
     : item.annotations;
 
+  useEffect(() => {
+    if (!modal) return;
+    const updateViewport = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener('resize', updateViewport);
+    return () => window.removeEventListener('resize', updateViewport);
+  }, [modal]);
+
+  const modalImageSize = modal && dimensions.width > 0 && dimensions.height > 0
+    ? (() => {
+      const aspectRatio = dimensions.width / dimensions.height;
+      const maxWidth = Math.min(viewport.width * 0.7, 420);
+      const maxHeight = Math.min(viewport.height * 0.5, 340);
+      const width = Math.min(dimensions.width, maxWidth, maxHeight * aspectRatio);
+      return { width, height: width / aspectRatio };
+    })()
+    : undefined;
+
   return (
-    <span className={`gallery-image${modal ? ' gallery-image--modal' : ''}`}>
+    <span
+      className={`gallery-image${modal ? ' gallery-image--modal' : ''}`}
+      style={modalImageSize}
+    >
       <img
         alt={modal ? item.filename : ''}
         loading={modal ? 'eager' : 'lazy'}
@@ -208,6 +230,7 @@ export const GalleryPage: React.FC = () => {
   const [labeledCount, setLabeledCount] = useState(0);
   const [unlabeledCount, setUnlabeledCount] = useState(0);
   const [search, setSearch] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [page, setPage] = useState(1);
   const [itemsPage, setItemsPage] = useState(1);
   const [pageInput, setPageInput] = useState('1');
@@ -217,6 +240,7 @@ export const GalleryPage: React.FC = () => {
   const [canDeleteImages, setCanDeleteImages] = useState(false);
   const [deletingImageId, setDeletingImageId] = useState<number | null>(null);
   const [datasetRole, setDatasetRole] = useState<string | undefined>();
+  const [datasetNameState, setDatasetNameState] = useState({ datasetId, name: '' });
   const [reviewingSampleId, setReviewingSampleId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -234,7 +258,7 @@ export const GalleryPage: React.FC = () => {
         if (statusFilter !== 'all') params.set('status', statusFilter);
         if (objectCountFilter !== 'all') params.set('object_count', objectCountFilter);
         if (filter !== 'all') params.set('labeled', String(filter === 'labeled'));
-        if (search.trim()) params.set('search', search.trim());
+        if (appliedSearch) params.set('search', appliedSearch);
         selectedClassIds.forEach((classId) => params.append('class_ids', String(classId)));
 
         const { data } = await apiClient.get<{
@@ -294,7 +318,7 @@ export const GalleryPage: React.FC = () => {
     statusFilter,
     objectCountFilter,
     filter,
-    search,
+    appliedSearch,
     selectedClassIds,
     reloadKey,
   ]);
@@ -305,17 +329,24 @@ export const GalleryPage: React.FC = () => {
 
     apiClient.get('/datasets/')
       .then(({ data }) => {
-        const dataset = (data.items || []).find((item: { id: number | string; is_owner?: boolean; my_role?: string }) => String(item.id) === datasetId);
+        const dataset = (data.items || []).find((item: {
+          id: number | string;
+          name?: string;
+          is_owner?: boolean;
+          my_role?: string;
+        }) => String(item.id) === datasetId);
         if (!cancelled) {
           const role = dataset?.is_owner ? 'owner' : dataset?.my_role;
           setDatasetRole(role);
           setCanDeleteImages(role === 'owner');
+          setDatasetNameState({ datasetId, name: dataset?.name || '' });
         }
       })
       .catch(() => {
         if (!cancelled) {
           setCanDeleteImages(false);
           setDatasetRole(undefined);
+          setDatasetNameState({ datasetId, name: '' });
         }
       });
 
@@ -395,6 +426,7 @@ export const GalleryPage: React.FC = () => {
     setSelectedClassIds([]);
     setPendingClassIds([]);
     setSearch('');
+    setAppliedSearch('');
     setPage(1);
   };
 
@@ -483,7 +515,9 @@ export const GalleryPage: React.FC = () => {
       <header className="gallery-heading">
         <div className="gallery-heading__copy">
           <button className="gallery-back" type="button" onClick={() => navigate('/')}>← Датасеты</button>
-          <h1>Галерея <span>#{datasetId}</span></h1>
+          <h1>{datasetNameState.datasetId === datasetId && datasetNameState.name
+            ? datasetNameState.name
+            : `Галерея #${datasetId}`}</h1>
           <p>{totalItems} кадров <span aria-hidden="true">·</span> {taskLabel(task)}</p>
         </div>
         <div className="gallery-heading__actions">
@@ -534,7 +568,14 @@ export const GalleryPage: React.FC = () => {
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 4.5 4.5" /></svg>
           <input
             aria-label="Поиск по имени файла"
-            onChange={(event) => { setPage(1); setSearch(event.target.value); }}
+            onChange={(event) => setSearch(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                setPage(1);
+                setAppliedSearch(search.trim());
+              }
+            }}
             placeholder="Поиск по имени файла"
             type="search"
             value={search}
@@ -739,49 +780,52 @@ export const GalleryPage: React.FC = () => {
       )}
 
       {activeItem && (
-        <div className="gallery-modal" onClick={() => setActiveItem(null)} role="presentation">
-          <section aria-label={`Просмотр кадра: ${activeItem.filename}`} aria-modal="true" className="gallery-modal__panel" onClick={(event) => event.stopPropagation()} role="dialog">
-            <header className="gallery-modal__header">
-              <div>
-                <h2>{activeItem.filename}</h2>
-                <p>{getVisibleObjectCount(activeItem)} объектов <span aria-hidden="true">·</span> {taskLabel(activeItem.task)}</p>
+        createPortal(
+          <div className="gallery-modal" onClick={() => setActiveItem(null)} role="presentation">
+            <section aria-label={`Просмотр кадра: ${activeItem.filename}`} aria-modal="true" className="gallery-modal__panel" onClick={(event) => event.stopPropagation()} role="dialog">
+              <header className="gallery-modal__header">
+                <div>
+                  <h2>{activeItem.filename}</h2>
+                  <p>{getVisibleObjectCount(activeItem)} объектов <span aria-hidden="true">·</span> {taskLabel(activeItem.task)}</p>
+                </div>
+                <span className="gallery-modal__position">
+                  {(itemsPage - 1) * PAGE_SIZE + activeIndex + 1} / {totalItems}
+                </span>
+                <button aria-label="Закрыть просмотр" className="gallery-modal__close" onClick={() => setActiveItem(null)} type="button">×</button>
+              </header>
+              <div className="gallery-modal__image">
+                <GalleryImage
+                  classNames={classCatalog}
+                  item={activeItem}
+                  key={activeItem.id}
+                  modal
+                  opacity={maskOpacity}
+                  selectedClassIds={selectedClassIds}
+                />
+                <button
+                  aria-label="Предыдущий кадр"
+                  className="gallery-modal__nav gallery-modal__nav--previous"
+                  disabled={activeIndex <= 0 && page <= 1}
+                  onClick={showPreviousItem}
+                  type="button"
+                >
+                  ‹
+                </button>
+                <button
+                  aria-label="Следующий кадр"
+                  className="gallery-modal__nav gallery-modal__nav--next"
+                  disabled={activeIndex < 0 || (activeIndex >= items.length - 1 && page >= pageCount)}
+                  onClick={showNextItem}
+                  type="button"
+                >
+                  ›
+                </button>
               </div>
-              <span className="gallery-modal__position">
-                {(itemsPage - 1) * PAGE_SIZE + activeIndex + 1} / {totalItems}
-              </span>
-              <button aria-label="Закрыть просмотр" className="gallery-modal__close" onClick={() => setActiveItem(null)} type="button">×</button>
-            </header>
-            <div className="gallery-modal__image">
-              <GalleryImage
-                classNames={classCatalog}
-                item={activeItem}
-                key={activeItem.id}
-                modal
-                opacity={maskOpacity}
-                selectedClassIds={selectedClassIds}
-              />
-              <button
-                aria-label="Предыдущий кадр"
-                className="gallery-modal__nav gallery-modal__nav--previous"
-                disabled={activeIndex <= 0 && page <= 1}
-                onClick={showPreviousItem}
-                type="button"
-              >
-                ‹
-              </button>
-              <button
-                aria-label="Следующий кадр"
-                className="gallery-modal__nav gallery-modal__nav--next"
-                disabled={activeIndex < 0 || (activeIndex >= items.length - 1 && page >= pageCount)}
-                onClick={showNextItem}
-                type="button"
-              >
-                ›
-              </button>
-            </div>
-            <footer className="gallery-modal__footer">Используйте клавиши ← и → для перехода между кадрами · Esc — закрыть</footer>
-          </section>
-        </div>
+              <footer className="gallery-modal__footer">Используйте клавиши ← и → для перехода между кадрами · Esc — закрыть</footer>
+            </section>
+          </div>,
+          document.body,
+        )
       )}
     </section>
   );

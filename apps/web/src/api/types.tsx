@@ -4,6 +4,7 @@ export interface User {
   id: string;
   email: string;
   display_name: string;
+  avatar_url?: string | null;
 }
 
 export interface AuthResponse {
@@ -18,6 +19,7 @@ export interface AuthMeResponse {
   user_id: number | string;
   email?: string;
   name?: string;
+  avatar_url?: string | null;
 }
 
 export interface YandexLoginResponse {

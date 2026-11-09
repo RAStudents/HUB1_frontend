@@ -209,6 +209,8 @@ export const GalleryPage: React.FC = () => {
   const [unlabeledCount, setUnlabeledCount] = useState(0);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [itemsPage, setItemsPage] = useState(1);
+  const [pageInput, setPageInput] = useState('1');
   const [activeItem, setActiveItem] = useState<GalleryItem | null>(null);
   const pendingNavigation = useRef<'next' | 'previous' | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -245,6 +247,7 @@ export const GalleryPage: React.FC = () => {
         }>(`/datasets/${datasetId}/samples?${params.toString()}`, { signal: controller.signal });
 
         setItems(data.items);
+        setItemsPage(page);
         setTotalItems(data.total);
         setLabeledCount(data.labeled_count);
         setUnlabeledCount(data.unlabeled_count);
@@ -320,6 +323,22 @@ export const GalleryPage: React.FC = () => {
   }, [datasetId]);
 
   const pageCount = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+  useEffect(() => {
+    setPageInput(String(page));
+  }, [page]);
+
+  const goToInputPage = () => {
+    const requestedPage = Number(pageInput);
+    if (!pageInput.trim() || !Number.isFinite(requestedPage)) {
+      setPageInput(String(page));
+      return;
+    }
+
+    const nextPage = Math.min(pageCount, Math.max(1, Math.trunc(requestedPage)));
+    setPageInput(String(nextPage));
+    if (nextPage !== page) setPage(nextPage);
+  };
+
   const visibleItems = items;
   const activeIndex = activeItem
     ? items.findIndex((item) => item.id === activeItem.id)
@@ -477,6 +496,7 @@ export const GalleryPage: React.FC = () => {
               max="1"
               step="0.05"
               value={maskOpacity}
+              style={{ '--range-progress': `${maskOpacity * 100}%` } as React.CSSProperties}
               onChange={(event) => setMaskOpacity(Number(event.target.value))}
             />
           </label>
@@ -697,7 +717,22 @@ export const GalleryPage: React.FC = () => {
           <span>Показано {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, totalItems)} из {totalItems}</span>
           <div className="gallery-pagination__controls">
             <button aria-label="Предыдущая страница" disabled={page === 1} onClick={() => setPage((current) => current - 1)} type="button">Назад</button>
-            <span>{page} / {pageCount}</span>
+            <label className="gallery-pagination__page">
+              <span>Страница</span>
+              <input
+                aria-label="Номер страницы"
+                max={pageCount}
+                min={1}
+                onBlur={goToInputPage}
+                onChange={(event) => setPageInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') event.currentTarget.blur();
+                }}
+                type="number"
+                value={pageInput}
+              />
+              <span aria-hidden="true">/ {pageCount}</span>
+            </label>
             <button aria-label="Следующая страница" disabled={page === pageCount} onClick={() => setPage((current) => current + 1)} type="button">Далее</button>
           </div>
         </footer>
@@ -712,7 +747,7 @@ export const GalleryPage: React.FC = () => {
                 <p>{getVisibleObjectCount(activeItem)} объектов <span aria-hidden="true">·</span> {taskLabel(activeItem.task)}</p>
               </div>
               <span className="gallery-modal__position">
-                {(page - 1) * PAGE_SIZE + activeIndex + 1} / {totalItems}
+                {(itemsPage - 1) * PAGE_SIZE + activeIndex + 1} / {totalItems}
               </span>
               <button aria-label="Закрыть просмотр" className="gallery-modal__close" onClick={() => setActiveItem(null)} type="button">×</button>
             </header>

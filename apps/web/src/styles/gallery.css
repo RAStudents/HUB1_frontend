@@ -50,19 +50,109 @@
 
 .gallery-opacity {
   display: flex;
-  min-width: 160px;
+  min-width: 190px;
   flex-direction: column;
-  gap: 8px;
-  padding: 9px 12px;
-  border: 1px solid var(--app-line);
-  border-radius: 6px;
-  background: var(--app-surface);
+  gap: 9px;
+  padding: 10px 13px 9px;
+  border: 1px solid #4d575c;
+  border-radius: 9px;
+  background: linear-gradient(145deg, #343b3f, #303639);
   color: var(--app-muted);
   font-size: 11px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 3%), 0 3px 10px rgb(0 0 0 / 12%);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
-.gallery-opacity strong { color: var(--app-text); font-weight: 600; }
-.gallery-opacity input { width: 100%; height: 4px; margin: 0; accent-color: var(--app-accent); cursor: pointer; }
+.gallery-opacity:focus-within {
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 3px rgb(255 107 45 / 16%), inset 0 1px 0 rgb(255 255 255 / 3%);
+}
+
+.gallery-opacity > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.gallery-opacity strong {
+  min-width: 38px;
+  padding: 3px 6px;
+  border: 1px solid rgb(255 107 45 / 25%);
+  border-radius: 5px;
+  background: rgb(255 107 45 / 10%);
+  color: #ff9a68;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  text-align: center;
+}
+
+.gallery-opacity input {
+  width: 100%;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  touch-action: pan-y;
+}
+
+.gallery-opacity input::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--app-accent) 0 var(--range-progress),
+    #596267 var(--range-progress) 100%
+  );
+}
+
+.gallery-opacity input::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: #596267;
+}
+
+.gallery-opacity input::-moz-range-progress {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--app-accent);
+}
+
+.gallery-opacity input::-webkit-slider-thumb {
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  appearance: none;
+  border: 2px solid #ffd1bc;
+  border-radius: 50%;
+  background: var(--app-accent);
+  box-shadow: 0 0 0 4px rgb(255 107 45 / 16%), 0 2px 5px rgb(0 0 0 / 30%);
+  transition: box-shadow 150ms ease, transform 150ms ease;
+}
+
+.gallery-opacity input::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: 2px solid #ffd1bc;
+  border-radius: 50%;
+  background: var(--app-accent);
+  box-shadow: 0 0 0 4px rgb(255 107 45 / 16%), 0 2px 5px rgb(0 0 0 / 30%);
+  transition: box-shadow 150ms ease, transform 150ms ease;
+}
+
+.gallery-opacity input:hover::-webkit-slider-thumb,
+.gallery-opacity input:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 6px rgb(255 107 45 / 20%), 0 2px 5px rgb(0 0 0 / 30%);
+  transform: scale(1.08);
+}
+
+.gallery-opacity input:hover::-moz-range-thumb,
+.gallery-opacity input:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 6px rgb(255 107 45 / 20%), 0 2px 5px rgb(0 0 0 / 30%);
+  transform: scale(1.08);
+}
 
 .gallery-button {
   display: inline-flex;
@@ -333,6 +423,7 @@
 .gallery-button:focus-visible,
 .gallery-tab:focus-visible,
 .gallery-pagination button:focus-visible,
+.gallery-pagination__page input:focus-visible,
 .gallery-modal__close:focus-visible,
 .gallery-back:focus-visible { outline: 2px solid #ff9a63; outline-offset: 3px; }
 
@@ -450,6 +541,23 @@
 .gallery-pagination__controls { display: flex; align-items: center; gap: 12px; color: #dfe2e3; }
 .gallery-pagination__controls button { min-height: 30px; padding: 0 9px; border: 1px solid var(--app-line); border-radius: 4px; background: var(--app-surface); color: var(--app-text); font-size: 11px; cursor: pointer; }
 .gallery-pagination__controls button:disabled { opacity: 0.45; cursor: not-allowed; }
+.gallery-pagination__page { display: inline-flex; align-items: center; gap: 6px; color: var(--app-muted); font-size: 11px; }
+.gallery-pagination__page input {
+  width: 52px;
+  height: 30px;
+  padding: 0 5px;
+  border: 1px solid var(--app-line);
+  border-radius: 4px;
+  background: var(--app-input);
+  color: var(--app-text);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  appearance: textfield;
+}
+.gallery-pagination__page input::-webkit-inner-spin-button,
+.gallery-pagination__page input::-webkit-outer-spin-button { margin: 0; appearance: none; }
+.gallery-pagination__page input:focus-visible { border-color: var(--app-accent); outline: 2px solid rgb(255 107 45 / 24%); outline-offset: 1px; }
 
 .gallery-state {
   display: flex;
@@ -480,8 +588,8 @@
 
 .gallery-modal__panel {
   display: flex;
-  width: min(96vw, 1600px);
-  height: min(94vh, 1200px);
+  width: min(92vw, 480px);
+  height: min(88vh, 520px);
   flex-direction: column;
   overflow: hidden;
   border: 1px solid #5b6469;
@@ -497,7 +605,14 @@
 .gallery-modal__close { width: 32px; height: 32px; flex: 0 0 auto; border: 0; border-radius: 4px; background: transparent; color: #c8cdcf; font-size: 24px; line-height: 1; cursor: pointer; }
 .gallery-modal__close:hover { background: #4a5257; color: white; }
 .gallery-modal__image { position: relative; display: grid; min-height: 0; flex: 1; place-items: center; overflow: hidden; background: #202426; }
-.gallery-modal__image .gallery-image { position: absolute; inset: 0; }
+.gallery-modal__image .gallery-image {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(26vw, 280px);
+  height: min(36vh, 280px);
+  transform: translate(-50%, -50%);
+}
 .gallery-modal__image .gallery-image > img { object-fit: contain; }
 .gallery-modal__nav {
   position: absolute;
@@ -544,7 +659,8 @@
   .gallery-card__preview { aspect-ratio: 16 / 10; }
   .gallery-pagination { align-items: flex-start; flex-direction: column; }
   .gallery-modal { padding: 10px; }
-  .gallery-modal__panel { width: 100%; height: 94vh; }
+  .gallery-modal__panel { width: min(94vw, 480px); height: min(88vh, 520px); }
+  .gallery-modal__image .gallery-image { width: min(60vw, 280px); height: min(36vh, 280px); }
   .gallery-modal__nav { width: 40px; height: 54px; }
   .gallery-modal__nav--previous { left: 8px; }
   .gallery-modal__nav--next { right: 8px; }

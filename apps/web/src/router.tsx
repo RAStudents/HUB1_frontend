@@ -10,6 +10,7 @@ import { CreatePage } from './datasets/CreatePage';
 import { MembersPage } from './datasets/MembersPage';
 import { GalleryPage } from './inspect/GalleryPage'; // Импортируем страницу галереи
 import { ProfilePage } from './profile/ProfilePage';
+import { UserAvatar } from './auth/UserAvatar';
 
 // ============ LAYOUT ============
 const Layout = () => {
@@ -28,9 +29,16 @@ const Layout = () => {
             <Link to="/" className="app-navigation__link">Датасеты</Link>
           </nav>
           <div className="app-account">
-            <span className="app-account__email">{user?.email}</span>
+            <Link to="/profile" className="app-account__email" aria-label="Открыть профиль">
+              {user?.email}
+            </Link>
             <Link to="/profile" className="app-account__avatar" aria-label="Открыть профиль" title="Профиль">
-              {(user?.display_name || user?.email || 'U').slice(0, 1).toUpperCase()}
+              <UserAvatar
+                className="app-account__avatar-image"
+                email={user?.email}
+                name={user?.display_name}
+                src={user?.avatar_url}
+              />
             </Link>
             <span className="app-account__divider" />
             <button type="button" className="app-logout" onClick={() => { logout(); navigate('/login'); }}>

@@ -157,7 +157,7 @@ export const DashboardPage = () => {
           <p>Управление датасетами для разметки</p>
         </div>
         <button className="button button--primary" onClick={() => navigate('/datasets/create')}>
-          + Создать датасет
+          Создать датасет
         </button>
       </header>
 

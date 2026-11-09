@@ -1,5 +1,5 @@
 // apps/web/src/inspect/Viewport.tsx
-import { useState, useRef, WheelEvent, MouseEvent, SyntheticEvent } from 'react';
+import { memo, useState, useRef, WheelEvent, MouseEvent, SyntheticEvent } from 'react';
 
 export interface Annotation {
   id: string;
@@ -19,6 +19,55 @@ interface ViewportProps {
 }
 
 const COLORS = ['#ef4444', '#f97316', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899'];
+
+interface MaskOverlayProps {
+  annotations: Annotation[];
+  showMasks: boolean;
+  imageWidth: number;
+  imageHeight: number;
+  scale: number;
+}
+
+const MaskOverlay = memo(({ annotations, showMasks, imageWidth, imageHeight, scale }: MaskOverlayProps) => {
+  if (!showMasks) return null;
+
+  return (
+    <svg
+      className="absolute top-0 left-0 w-full h-full pointer-events-none"
+      viewBox={`0 0 ${imageWidth} ${imageHeight}`}
+      preserveAspectRatio="none"
+    >
+      {annotations.map((ann) => {
+        const color = COLORS[ann.classId % COLORS.length];
+        const pointsStr = ann.points
+          .map(p => `${p.x * imageWidth},${p.y * imageHeight}`)
+          .join(' ');
+
+        return (
+          <g key={ann.id}>
+            <polygon
+              points={pointsStr}
+              fill={`${color}33`}
+              stroke={color}
+              strokeWidth={2 / scale}
+              vectorEffect="non-scaling-stroke"
+            />
+            <text
+              x={ann.points[0]?.x * imageWidth || 0}
+              y={(ann.points[0]?.y * imageHeight || 0) - (5 / scale)}
+              fill={color}
+              fontSize={12 / scale}
+              fontWeight="bold"
+              style={{ textShadow: '0px 0px 2px rgba(0,0,0,0.8)' }}
+            >
+              {ann.className}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+});
 
 export const Viewport = ({ 
   imageUrl, 
@@ -104,47 +153,13 @@ export const Viewport = ({
           draggable={false}
         />
 
-        {/* SVG слой с масками */}
-        {showMasks && (
-          <svg
-            className="absolute top-0 left-0 w-full h-full pointer-events-none"
-            viewBox={`0 0 ${imageWidth} ${imageHeight}`}
-            preserveAspectRatio="none"
-          >
-            {annotations.map((ann) => {
-              const color = COLORS[ann.classId % COLORS.length];
-              
-              // Точный расчет точек полигона без разрывов строк
-              const pointsStr = ann.points
-                .map(p => `${p.x * imageWidth},${p.y * imageHeight}`)
-                .join(' ');
-
-              return (
-                <g key={ann.id}>
-                  {/* Полигон / OBB / Box */}
-                  <polygon
-                    points={pointsStr}
-                    fill={`${color}33`} // 20% прозрачности
-                    stroke={color}
-                    strokeWidth={2 / scale} // Толщина линии не меняется при зуме
-                    vectorEffect="non-scaling-stroke"
-                  />
-                  {/* Подпись класса */}
-                  <text
-                    x={ann.points[0]?.x * imageWidth || 0}
-                    y={(ann.points[0]?.y * imageHeight || 0) - (5 / scale)}
-                    fill={color}
-                    fontSize={12 / scale}
-                    fontWeight="bold"
-                    style={{ textShadow: '0px 0px 2px rgba(0,0,0,0.8)' }}
-                  >
-                    {ann.className}
-                  </text>
-                </g>
-              );
-            })}
-          </svg>
-        )}
+        <MaskOverlay
+          annotations={annotations}
+          showMasks={showMasks}
+          imageWidth={imageWidth}
+          imageHeight={imageHeight}
+          scale={scale}
+        />
       </div>
 
       {/* Подсказка по управлению */}

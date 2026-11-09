@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { apiClient } from '../api/client';
 
@@ -8,7 +8,7 @@ interface GalleryItem {
   sample_id?: number;
   filename: string;
   image_url: string;
-  mask_url: string;
+  annotations: AnnotationGeometry[];
   objects_count: number;
   task: string;
   split?: string;
@@ -18,12 +18,19 @@ interface GalleryItem {
   annotation_classes?: Array<{ id: number; name: string; count: number }>;
 }
 
+interface AnnotationGeometry {
+  id?: number | null;
+  class_id: number;
+  box?: { x: number; y: number; width: number; height: number } | null;
+  obb?: { x: number; y: number; width: number; height: number; angle_deg: number } | null;
+  polygon?: { points: { x: number; y: number }[] } | null;
+}
+
 type GalleryFilter = 'all' | 'labeled' | 'unlabeled';
 type ObjectCountFilter = 'all' | 'none' | 'one' | 'multiple';
 type SplitFilter = 'all' | 'train' | 'val' | 'test';
 
 const PAGE_SIZE = 12;
-const GALLERY_BATCH_SIZE = 500;
 const REVIEW_STATUSES = [
   ['unlabeled', 'Без разметки'],
   ['in_progress', 'В работе'],
@@ -39,11 +46,127 @@ const taskLabel = (task?: string) => {
   return task || 'Не указана';
 };
 
+const ANNOTATION_COLORS = ['#ef4444', '#f97316', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899'];
+
+const GalleryImage: React.FC<{
+  item: GalleryItem;
+  selectedClassIds: number[];
+  classNames: Record<number, string>;
+  opacity: number;
+  modal?: boolean;
+}> = ({ item, selectedClassIds, classNames, opacity, modal = false }) => {
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const annotations = selectedClassIds.length > 0
+    ? item.annotations.filter((annotation) => selectedClassIds.includes(annotation.class_id))
+    : item.annotations;
+
+  return (
+    <span className={`gallery-image${modal ? ' gallery-image--modal' : ''}`}>
+      <img
+        alt={modal ? item.filename : ''}
+        loading={modal ? 'eager' : 'lazy'}
+        onLoad={(event) => setDimensions({
+          width: event.currentTarget.naturalWidth,
+          height: event.currentTarget.naturalHeight,
+        })}
+        src={item.image_url}
+      />
+      {dimensions.width > 0 && dimensions.height > 0 && annotations.length > 0 && (
+        <svg
+          aria-hidden="true"
+          className="gallery-image__annotations"
+          preserveAspectRatio={modal ? 'xMidYMid meet' : 'xMidYMid slice'}
+          viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
+          style={{ opacity }}
+        >
+          {annotations.map((annotation, index) => {
+            const colorIndex = (annotation.class_id % ANNOTATION_COLORS.length + ANNOTATION_COLORS.length)
+              % ANNOTATION_COLORS.length;
+            const color = ANNOTATION_COLORS[colorIndex];
+            const strokeWidth = Math.max(2, dimensions.width * 0.0025);
+            const points = annotation.polygon?.points ?? [];
+            const label = classNames[annotation.class_id] || `class_${annotation.class_id}`;
+
+            if (annotation.obb) {
+              const { x, y, width, height, angle_deg } = annotation.obb;
+              const centerX = x * dimensions.width;
+              const centerY = y * dimensions.height;
+              const rectWidth = width * dimensions.width;
+              const rectHeight = height * dimensions.height;
+              return (
+                <g key={annotation.id ?? `${annotation.class_id}-${index}`}>
+                  <rect
+                    fill={`${color}33`}
+                    height={rectHeight}
+                    stroke={color}
+                    strokeWidth={strokeWidth}
+                    transform={`rotate(${angle_deg} ${centerX} ${centerY})`}
+                    width={rectWidth}
+                    x={centerX - rectWidth / 2}
+                    y={centerY - rectHeight / 2}
+                  />
+                </g>
+              );
+            }
+
+            if (annotation.box) {
+              const { x, y, width, height } = annotation.box;
+              const rectWidth = width * dimensions.width;
+              const rectHeight = height * dimensions.height;
+              return (
+                <g key={annotation.id ?? `${annotation.class_id}-${index}`}>
+                  <rect
+                    fill={`${color}33`}
+                    height={rectHeight}
+                    stroke={color}
+                    strokeWidth={strokeWidth}
+                    width={rectWidth}
+                    x={x * dimensions.width - rectWidth / 2}
+                    y={y * dimensions.height - rectHeight / 2}
+                  />
+                  <text
+                    fill={color}
+                    fontSize={Math.max(12, dimensions.width * 0.015)}
+                    fontWeight="bold"
+                    x={x * dimensions.width - rectWidth / 2}
+                    y={y * dimensions.height - rectHeight / 2 - 4}
+                  >
+                    {label}
+                  </text>
+                </g>
+              );
+            }
+
+            if (points.length > 0) {
+              const pointsString = points
+                .map(({ x, y }) => `${x * dimensions.width},${y * dimensions.height}`)
+                .join(' ');
+              return (
+                <g key={annotation.id ?? `${annotation.class_id}-${index}`}>
+                  <polygon fill={`${color}33`} points={pointsString} stroke={color} strokeWidth={strokeWidth} />
+                  <text
+                    fill={color}
+                    fontSize={Math.max(12, dimensions.width * 0.015)}
+                    fontWeight="bold"
+                    x={points[0].x * dimensions.width}
+                    y={points[0].y * dimensions.height - 4}
+                  >
+                    {label}
+                  </text>
+                </g>
+              );
+            }
+            return null;
+          })}
+        </svg>
+      )}
+    </span>
+  );
+};
+
 export const GalleryPage: React.FC = () => {
   const { datasetId } = useParams<{ datasetId: string }>();
-  const location = useLocation();
   const navigate = useNavigate();
-  const routerYaml = (location.state as { yamlPath?: string } | null)?.yamlPath;
 
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,12 +176,41 @@ export const GalleryPage: React.FC = () => {
   const [splitFilter, setSplitFilter] = useState<SplitFilter>('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [objectCountFilter, setObjectCountFilter] = useState<ObjectCountFilter>('all');
-  const [selectedClassIds, setSelectedClassIds] = useState<number[]>([]);
-  const [pendingClassIds, setPendingClassIds] = useState<number[]>([]);
-  const [classCatalog, setClassCatalog] = useState<Record<number, string>>({});
+  const [selectedClassState, setSelectedClassState] = useState({ datasetId, ids: [] as number[] });
+  const selectedClassIds = useMemo(
+    () => selectedClassState.datasetId === datasetId ? selectedClassState.ids : [],
+    [datasetId, selectedClassState],
+  );
+  const setSelectedClassIds: React.Dispatch<React.SetStateAction<number[]>> = (action) => {
+    setSelectedClassState((current) => {
+      const currentIds = current.datasetId === datasetId ? current.ids : [];
+      return { datasetId, ids: typeof action === 'function' ? action(currentIds) : action };
+    });
+  };
+  const [pendingClassState, setPendingClassState] = useState({ datasetId, ids: [] as number[] });
+  const pendingClassIds = useMemo(
+    () => pendingClassState.datasetId === datasetId ? pendingClassState.ids : [],
+    [datasetId, pendingClassState],
+  );
+  const setPendingClassIds: React.Dispatch<React.SetStateAction<number[]>> = (action) => {
+    setPendingClassState((current) => {
+      const currentIds = current.datasetId === datasetId ? current.ids : [];
+      return { datasetId, ids: typeof action === 'function' ? action(currentIds) : action };
+    });
+  };
+  const [classCatalogState, setClassCatalogState] = useState({
+    datasetId,
+    names: {} as Record<number, string>,
+  });
+  const classCatalog = classCatalogState.datasetId === datasetId ? classCatalogState.names : {};
+  const [datasetTask, setDatasetTask] = useState('');
+  const [totalItems, setTotalItems] = useState(0);
+  const [labeledCount, setLabeledCount] = useState(0);
+  const [unlabeledCount, setUnlabeledCount] = useState(0);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [activeItem, setActiveItem] = useState<GalleryItem | null>(null);
+  const pendingNavigation = useRef<'next' | 'previous' | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [canDeleteImages, setCanDeleteImages] = useState(false);
   const [deletingImageId, setDeletingImageId] = useState<number | null>(null);
@@ -66,68 +218,54 @@ export const GalleryPage: React.FC = () => {
   const [reviewingSampleId, setReviewingSampleId] = useState<number | null>(null);
 
   useEffect(() => {
-    setClassCatalog({});
-    setSelectedClassIds((current) => current.length > 0 ? [] : current);
-    setPendingClassIds((current) => current.length > 0 ? [] : current);
-  }, [datasetId]);
-
-  useEffect(() => {
-    if (routerYaml && datasetId) {
-      localStorage.setItem(`dataset_${datasetId}_yaml`, routerYaml);
-    }
-  }, [routerYaml, datasetId]);
-
-  useEffect(() => {
     if (!datasetId) return;
 
-    let cancelled = false;
-    const savedYaml = localStorage.getItem(`dataset_${datasetId}_yaml`);
-    const yamlPath = routerYaml || savedYaml || undefined;
-
-    setLoading(true);
-    const loadGallery = async () => {
+    const controller = new AbortController();
+    const loadPage = async () => {
+      setLoading(true);
       try {
-        const splits: SplitFilter[] = splitFilter === 'all'
-          ? ['train', 'val', 'test']
-          : [splitFilter];
-        const galleryItems: GalleryItem[] = [];
+        const params = new URLSearchParams({
+          page: String(page),
+          page_size: String(PAGE_SIZE),
+        });
+        if (splitFilter !== 'all') params.set('split', splitFilter);
+        if (statusFilter !== 'all') params.set('status', statusFilter);
+        if (objectCountFilter !== 'all') params.set('object_count', objectCountFilter);
+        if (filter !== 'all') params.set('labeled', String(filter === 'labeled'));
+        if (search.trim()) params.set('search', search.trim());
+        selectedClassIds.forEach((classId) => params.append('class_ids', String(classId)));
 
-        for (const split of splits) {
-          let offset = 0;
-          while (!cancelled) {
-            const params = new URLSearchParams({
-              split,
-              limit: String(GALLERY_BATCH_SIZE),
-              offset: String(offset),
-            });
-            if (yamlPath) params.set('yaml_path', yamlPath);
-            selectedClassIds.forEach((classId) => params.append('class_ids', String(classId)));
+        const { data } = await apiClient.get<{
+          total: number;
+          labeled_count: number;
+          unlabeled_count: number;
+          task: string;
+          classes: Array<{ id: number; name: string; count: number }>;
+          items: GalleryItem[];
+        }>(`/datasets/${datasetId}/samples?${params.toString()}`, { signal: controller.signal });
 
-            const response = await apiClient.get<GalleryItem[]>(
-              `/datasets/${datasetId}/gallery?${params.toString()}`,
-            );
-            galleryItems.push(...response.data);
-            if (response.data.length < GALLERY_BATCH_SIZE) break;
-            offset += GALLERY_BATCH_SIZE;
-          }
+        setItems(data.items);
+        setTotalItems(data.total);
+        setLabeledCount(data.labeled_count);
+        setUnlabeledCount(data.unlabeled_count);
+        setDatasetTask(data.task);
+        setClassCatalogState({
+          datasetId,
+          names: Object.fromEntries(data.classes.map(({ id, name }) => [id, name])),
+        });
+        if (pendingNavigation.current) {
+          setActiveItem(pendingNavigation.current === 'next'
+            ? data.items[0] || null
+            : data.items[data.items.length - 1] || null);
+          pendingNavigation.current = null;
+        } else {
+          setActiveItem((current) => current
+            ? data.items.find((item) => item.id === current.id) || null
+            : null);
         }
-
-        if (cancelled) return;
-        setItems(galleryItems);
-        setClassCatalog((current) => galleryItems.reduce(
-          (catalog: Record<number, string>, item: GalleryItem) => {
-            item.annotation_classes?.forEach(({ id, name }) => {
-              catalog[id] = name;
-            });
-            return catalog;
-          },
-          { ...current },
-        ));
-        setActiveItem((current) => current
-          ? galleryItems.find((item) => item.id === current.id) || current
-          : null);
+        setError(null);
       } catch (err) {
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           setError({
             datasetId,
             reloadKey,
@@ -137,14 +275,26 @@ export const GalleryPage: React.FC = () => {
           });
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
 
-    void loadGallery();
-
-    return () => { cancelled = true; };
-  }, [datasetId, routerYaml, reloadKey, splitFilter, selectedClassIds]);
+    const timeout = window.setTimeout(() => { void loadPage(); }, 180);
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [
+    datasetId,
+    page,
+    splitFilter,
+    statusFilter,
+    objectCountFilter,
+    filter,
+    search,
+    selectedClassIds,
+    reloadKey,
+  ]);
 
   useEffect(() => {
     if (!datasetId) return;
@@ -169,36 +319,26 @@ export const GalleryPage: React.FC = () => {
     return () => { cancelled = true; };
   }, [datasetId]);
 
-  const normalizedSearch = search.trim().toLocaleLowerCase();
-  const filteredItems = items.filter((item) => {
-    const matchesStatus = filter === 'all'
-      || (filter === 'labeled' ? item.objects_count > 0 : item.objects_count === 0);
-    const matchesReviewStatus = statusFilter === 'all' || item.status === statusFilter;
-    const matchesObjectCount = objectCountFilter === 'all'
-      || (objectCountFilter === 'none' && item.objects_count === 0)
-      || (objectCountFilter === 'one' && item.objects_count === 1)
-      || (objectCountFilter === 'multiple' && item.objects_count > 1);
-    const matchesClasses = selectedClassIds.length === 0
-      || selectedClassIds.some((classId) => item.annotation_classes?.some((itemClass) => itemClass.id === classId));
-    return matchesStatus
-      && matchesReviewStatus
-      && matchesObjectCount
-      && matchesClasses
-      && item.filename.toLocaleLowerCase().includes(normalizedSearch);
-  });
-  const pageCount = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
-  const visibleItems = filteredItems.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const pageCount = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+  const visibleItems = items;
   const activeIndex = activeItem
-    ? filteredItems.findIndex((item) => item.id === activeItem.id)
+    ? items.findIndex((item) => item.id === activeItem.id)
     : -1;
-  const showPreviousItem = () => {
-    if (activeIndex > 0) setActiveItem(filteredItems[activeIndex - 1]);
-  };
-  const showNextItem = () => {
-    if (activeIndex >= 0 && activeIndex < filteredItems.length - 1) {
-      setActiveItem(filteredItems[activeIndex + 1]);
+  const showPreviousItem = useCallback(() => {
+    if (activeIndex > 0) setActiveItem(items[activeIndex - 1]);
+    else if (activeItem && page > 1) {
+      pendingNavigation.current = 'previous';
+      setPage((current) => current - 1);
     }
-  };
+  }, [activeIndex, activeItem, items, page]);
+  const showNextItem = useCallback(() => {
+    if (activeIndex >= 0 && activeIndex < items.length - 1) {
+      setActiveItem(items[activeIndex + 1]);
+    } else if (activeItem && page < pageCount) {
+      pendingNavigation.current = 'next';
+      setPage((current) => current + 1);
+    }
+  }, [activeIndex, activeItem, items, page, pageCount]);
 
   useEffect(() => {
     if (!activeItem) return;
@@ -209,17 +349,24 @@ export const GalleryPage: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeItem, activeIndex, filteredItems]);
+  }, [activeItem, activeIndex, items, showNextItem, showPreviousItem]);
 
   const currentError = error && error.datasetId === datasetId && error.reloadKey === reloadKey ? error.message : null;
-  const labeledCount = items.filter((item) => item.objects_count > 0).length;
-  const task = items[0]?.task;
-  const firstItem = filteredItems[0];
+  const task = items[0]?.task || datasetTask;
+  const firstItem = items[0];
   const availableClasses = Object.entries(classCatalog)
     .map(([id, name]) => ({ id: Number(id), name }))
     .sort((left, right) => left.id - right.id);
   const hasPendingClassChanges = pendingClassIds.length !== selectedClassIds.length
     || pendingClassIds.some((classId) => !selectedClassIds.includes(classId));
+  const getVisibleObjectCount = (item: GalleryItem) => selectedClassIds.length > 0
+    ? item.annotation_classes?.reduce(
+      (count, itemClass) => selectedClassIds.includes(itemClass.id)
+        ? count + itemClass.count
+        : count,
+      0,
+    ) ?? 0
+    : item.objects_count;
 
   const clearFilters = () => {
     setFilter('all');
@@ -242,7 +389,7 @@ export const GalleryPage: React.FC = () => {
       await apiClient.delete(`/datasets/${datasetId}/gallery-item`, {
         params: { filename: item.filename, split: item.split || 'train' },
       });
-      setItems((current) => current.filter((entry) => entry.id !== item.id));
+      setReloadKey((key) => key + 1);
       setPage(1);
       setActiveItem((current) => current?.id === item.id ? null : current);
     } catch (requestError: any) {
@@ -294,7 +441,12 @@ export const GalleryPage: React.FC = () => {
   };
 
   if (loading) {
-    return <section className="gallery-state" aria-live="polite"><span className="gallery-state__spinner" />Генерация масок и загрузка датасета...</section>;
+    return (
+      <section className="gallery-state" aria-live="polite">
+        <span className="gallery-state__spinner" />
+        Загрузка страницы галереи…
+      </section>
+    );
   }
 
   if (currentError) {
@@ -313,11 +465,11 @@ export const GalleryPage: React.FC = () => {
         <div className="gallery-heading__copy">
           <button className="gallery-back" type="button" onClick={() => navigate('/')}>← Датасеты</button>
           <h1>Галерея <span>#{datasetId}</span></h1>
-          <p>{items.length} кадров <span aria-hidden="true">·</span> {taskLabel(task)}</p>
+          <p>{totalItems} кадров <span aria-hidden="true">·</span> {taskLabel(task)}</p>
         </div>
         <div className="gallery-heading__actions">
           <label className="gallery-opacity">
-            <span>Маска <strong>{Math.round(maskOpacity * 100)}%</strong></span>
+            <span>Разметка <strong>{Math.round(maskOpacity * 100)}%</strong></span>
             <input
               aria-label="Прозрачность маски"
               type="range"
@@ -342,9 +494,9 @@ export const GalleryPage: React.FC = () => {
       <div className="gallery-toolbar">
         <div className="gallery-tabs" role="tablist" aria-label="Фильтр по статусу разметки">
           {([
-            ['all', 'Все', items.length],
+            ['all', 'Все', totalItems],
             ['labeled', 'Размеченные', labeledCount],
-            ['unlabeled', 'Без разметки', items.length - labeledCount],
+            ['unlabeled', 'Без разметки', unlabeledCount],
           ] as const).map(([value, label, count]) => (
             <button
               aria-selected={filter === value}
@@ -446,11 +598,10 @@ export const GalleryPage: React.FC = () => {
         ))}
         <button className="gallery-filter-reset" onClick={clearFilters} type="button">Сбросить</button>
       </div>
-
       {visibleItems.length === 0 ? (
         <div className="gallery-empty">
-          <h2>{items.length ? 'Ничего не найдено' : 'Галерея пока пуста'}</h2>
-          <p>{items.length ? 'Измените запрос или выберите другой статус.' : 'В этом датасете пока нет изображений для показа.'}</p>
+          <h2>{totalItems ? 'Ничего не найдено' : 'Галерея пока пуста'}</h2>
+          <p>{totalItems ? 'Измените запрос или выберите другой статус.' : 'В этом датасете пока нет изображений для показа.'}</p>
         </div>
       ) : (
         <div className="gallery-grid">
@@ -460,10 +611,15 @@ export const GalleryPage: React.FC = () => {
               <article className="gallery-card" key={item.id}>
                 <button className="gallery-card__open" onClick={() => setActiveItem(item)} type="button">
                 <span className="gallery-card__preview">
-                  <img alt="" className="gallery-card__image" loading="lazy" src={item.image_url} />
-                  {item.mask_url && <img alt="" className="gallery-card__mask" loading="lazy" src={item.mask_url} style={{ opacity: maskOpacity }} />}
+                  <GalleryImage
+                    classNames={classCatalog}
+                    item={item}
+                    key={item.id}
+                    opacity={maskOpacity}
+                    selectedClassIds={selectedClassIds}
+                  />
                   <span className="gallery-card__count">
-                    {selectedClassIds.length > 0 ? item.visible_objects_count : item.objects_count} объектов
+                    {getVisibleObjectCount(item)} объектов
                   </span>
                 </span>
                 <span className="gallery-card__details">
@@ -536,9 +692,9 @@ export const GalleryPage: React.FC = () => {
         </div>
       )}
 
-      {filteredItems.length > 0 && (
+      {totalItems > 0 && (
         <footer className="gallery-pagination">
-          <span>Показано {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredItems.length)} из {filteredItems.length}</span>
+          <span>Показано {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, totalItems)} из {totalItems}</span>
           <div className="gallery-pagination__controls">
             <button aria-label="Предыдущая страница" disabled={page === 1} onClick={() => setPage((current) => current - 1)} type="button">Назад</button>
             <span>{page} / {pageCount}</span>
@@ -553,18 +709,26 @@ export const GalleryPage: React.FC = () => {
             <header className="gallery-modal__header">
               <div>
                 <h2>{activeItem.filename}</h2>
-                <p>{activeItem.objects_count} объектов <span aria-hidden="true">·</span> {taskLabel(activeItem.task)}</p>
+                <p>{getVisibleObjectCount(activeItem)} объектов <span aria-hidden="true">·</span> {taskLabel(activeItem.task)}</p>
               </div>
-              <span className="gallery-modal__position">{activeIndex + 1} / {filteredItems.length}</span>
+              <span className="gallery-modal__position">
+                {(page - 1) * PAGE_SIZE + activeIndex + 1} / {totalItems}
+              </span>
               <button aria-label="Закрыть просмотр" className="gallery-modal__close" onClick={() => setActiveItem(null)} type="button">×</button>
             </header>
             <div className="gallery-modal__image">
-              <img alt={activeItem.filename} src={activeItem.image_url} />
-              {activeItem.mask_url && <img alt="" src={activeItem.mask_url} style={{ opacity: maskOpacity }} />}
+              <GalleryImage
+                classNames={classCatalog}
+                item={activeItem}
+                key={activeItem.id}
+                modal
+                opacity={maskOpacity}
+                selectedClassIds={selectedClassIds}
+              />
               <button
                 aria-label="Предыдущий кадр"
                 className="gallery-modal__nav gallery-modal__nav--previous"
-                disabled={activeIndex <= 0}
+                disabled={activeIndex <= 0 && page <= 1}
                 onClick={showPreviousItem}
                 type="button"
               >
@@ -573,7 +737,7 @@ export const GalleryPage: React.FC = () => {
               <button
                 aria-label="Следующий кадр"
                 className="gallery-modal__nav gallery-modal__nav--next"
-                disabled={activeIndex < 0 || activeIndex >= filteredItems.length - 1}
+                disabled={activeIndex < 0 || (activeIndex >= items.length - 1 && page >= pageCount)}
                 onClick={showNextItem}
                 type="button"
               >

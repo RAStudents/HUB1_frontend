@@ -94,6 +94,13 @@ button { color: inherit; }
 .app-navigation__link:hover,
 .app-navigation__link--active {
   border-bottom-color: var(--app-accent);
+}
+
+.app-navigation__link:hover {
+  color: #F85025;
+}
+
+.app-navigation__link--active {
   color: #f0f1f2;
 }
 
@@ -116,8 +123,8 @@ button { color: inherit; }
   transition: color 120ms ease;
 }
 
-.app-account__email:hover { color: #fff; }
-.app-account__email:focus-visible { border-radius: 3px; outline: 2px solid #ff9a63; outline-offset: 4px; }
+.app-account__email:hover { color: #F85025; }
+.app-account__email:focus-visible { border-radius: 3px; outline: 2px solid #f06a2b; outline-offset: 4px; }
 
 .app-account__avatar {
   display: grid;
@@ -130,7 +137,7 @@ button { color: inherit; }
   text-decoration: none;
 }
 
-.app-account__avatar:focus-visible { border-radius: 50%; outline: 2px solid #ff9a63; outline-offset: 4px; }
+.app-account__avatar:focus-visible { border-radius: 50%; outline: 2px solid #f06a2b; outline-offset: 4px; }
 
 .app-account__avatar-image {
   display: block;
@@ -149,7 +156,7 @@ button { color: inherit; }
 }
 
 .app-account__avatar:hover .app-account__avatar-image {
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-accent) 22%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, #F85025 22%, transparent);
 }
 
 .app-account__avatar-image img { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
@@ -174,7 +181,7 @@ button { color: inherit; }
   cursor: pointer;
 }
 
-.app-logout:hover { color: #fff; }
+.app-logout:hover { color: #F85025; }
 
 .app-logout svg,
 .button svg {
@@ -250,7 +257,7 @@ button { color: inherit; }
   color: #fff;
 }
 
-.button--primary:hover { background: #ff7b3d; }
+.button--primary:hover { background: #F85025; }
 .button--primary svg { width: 17px; height: 17px; }
 
 .page-back {
@@ -263,7 +270,7 @@ button { color: inherit; }
   text-decoration: none;
 }
 
-.page-back:hover { color: var(--app-text); }
+.page-back:hover { color: #F85025; }
 
 .page-back svg {
   width: 16px;

@@ -69,7 +69,7 @@
   cursor: pointer;
 }
 
-.task-choice:hover { border-color: #7d878e; }
+.task-choice:hover { border-color: #F85025; }
 .task-choice.is-active { border-color: var(--app-accent); background: var(--app-accent-soft); }
 .task-choice:focus-visible { outline: 2px solid #ff9a63; outline-offset: 2px; }
 .task-choice__top { display: flex; align-items: center; justify-content: space-between; }
@@ -162,13 +162,13 @@
   cursor: pointer;
 }
 
-.yaml-upload:hover { border-color: #899197; }
+.yaml-upload:hover { border-color: #F85025; }
 .yaml-upload svg { width: 17px; height: 17px; fill: none; stroke: currentColor; }
 
 .yaml-preview { max-height: 120px; overflow: auto; margin: 0; padding: 12px; border: 1px solid #596269; border-radius: 6px; background: var(--app-input); color: #cfd6d7; font-size: 12px; }
 .form-actions { display: flex; justify-content: flex-end; gap: 10px; padding-top: 17px; border-top: 1px solid #596269; }
 .button--outline { border-color: #657078; background: transparent; color: #d0d5d7; }
-.button--outline:hover { background: rgb(255 255 255 / 4%); }
+.button--outline:hover { border-color: #F85025; background: #F85025; color: #fff; }
 
 .file-input-hidden {
   position: absolute;

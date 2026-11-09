@@ -1,9 +1,10 @@
 // apps/web/src/datasets/DashboardPage.tsx
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { apiClient } from '../api/client';
 import { downloadDatasetExport, getExportProgressLabel } from '../api/exports';
-import type { ExportProgress } from '../api/exports';
+import type { ExportClass, ExportOptions, ExportProgress } from '../api/exports';
 import { useAuth } from '../auth/AuthContext';
 
 interface DatasetItem {
@@ -40,6 +41,13 @@ export const DashboardPage = () => {
   const [deletingDatasetId, setDeletingDatasetId] = useState<number | null>(null);
   const [exportingDatasetId, setExportingDatasetId] = useState<number | null>(null);
   const [exportProgress, setExportProgress] = useState<ExportProgress | null>(null);
+  const [exportDialogDataset, setExportDialogDataset] = useState<DatasetItem | null>(null);
+  const [exportClasses, setExportClasses] = useState<ExportClass[]>([]);
+  const [selectedExportClassIds, setSelectedExportClassIds] = useState<number[]>([]);
+  const [selectedExportSplits, setSelectedExportSplits] = useState<Array<'train' | 'val' | 'test'>>(['train', 'val', 'test']);
+  const [isLoadingExportClasses, setIsLoadingExportClasses] = useState(false);
+  const [exportClassError, setExportClassError] = useState('');
+  const [exportDialogError, setExportDialogError] = useState('');
   const isOwner = (dataset: DatasetItem) => Boolean(dataset.is_owner || dataset.my_role === 'owner');
   const myDatasets = datasets.filter(isOwner);
   const sharedDatasets = datasets.filter((dataset) => !isOwner(dataset));
@@ -77,14 +85,38 @@ export const DashboardPage = () => {
     }
   };
 
-  const exportDataset = async (event: React.MouseEvent<HTMLButtonElement>, dataset: DatasetItem) => {
+  const openExportDialog = async (event: React.MouseEvent<HTMLButtonElement>, dataset: DatasetItem) => {
     event.stopPropagation();
+    setExportDialogDataset(dataset);
+    setExportClasses([]);
+    setSelectedExportClassIds([]);
+    setSelectedExportSplits(['train', 'val', 'test']);
+    setExportClassError('');
+    setExportDialogError('');
+    setIsLoadingExportClasses(true);
+    try {
+      const { data } = await apiClient.get<ExportClass[]>(`/datasets/${dataset.id}/exports/classes`);
+      setExportClasses(data);
+      setSelectedExportClassIds(data.map(({ id }) => id));
+    } catch (error) {
+      const message = axios.isAxiosError(error)
+        ? error.response?.data?.detail || 'Не удалось загрузить список классов.'
+        : error instanceof Error ? error.message : 'Не удалось загрузить список классов.';
+      setExportClassError(message);
+    } finally {
+      setIsLoadingExportClasses(false);
+    }
+  };
+
+  const exportDataset = async (dataset: DatasetItem, options: ExportOptions) => {
     setExportingDatasetId(dataset.id);
+    setExportDialogDataset(null);
     try {
       const exportedSamples = await downloadDatasetExport(
         dataset.id,
         dataset.name,
         setExportProgress,
+        options,
       );
       if (exportedSamples === 0) {
         window.alert('В датасете нет принятых кадров для экспорта.');
@@ -97,6 +129,24 @@ export const DashboardPage = () => {
       setExportingDatasetId(null);
       setExportProgress(null);
     }
+  };
+
+  const submitExport = () => {
+    if (!exportDialogDataset) return;
+    if (selectedExportSplits.length === 0) {
+      setExportDialogError('Выберите хотя бы один сплит.');
+      return;
+    }
+    if (exportClasses.length > 0 && selectedExportClassIds.length === 0) {
+      setExportDialogError('Выберите хотя бы один класс.');
+      return;
+    }
+
+    const options: ExportOptions = {
+      class_ids: selectedExportClassIds.length === exportClasses.length ? null : selectedExportClassIds,
+      splits: selectedExportSplits.length === 3 ? null : selectedExportSplits,
+    };
+    void exportDataset(exportDialogDataset, options);
   };
 
   return (
@@ -192,7 +242,7 @@ export const DashboardPage = () => {
                           type="button"
                           className="button button--quiet dataset-card__open dataset-card__open--labeler"
                           disabled={exportingDatasetId === dataset.id}
-                          onClick={(event) => exportDataset(event, dataset)}
+                          onClick={(event) => { void openExportDialog(event, dataset); }}
                         >
                           {exportingDatasetId === dataset.id ? 'Экспортируем...' : 'Экспорт'}
                         </button>
@@ -245,11 +295,115 @@ export const DashboardPage = () => {
               className="dataset-create-tile"
               onClick={() => navigate('/datasets/create')}
             >
-              <span className="dataset-create-tile__plus" aria-hidden="true">+</span>
+              <span className="dataset-create-tile__plus" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+              </span>
               <strong>Новый датасет</strong>
               <span>Задайте классы и тип разметки, потом пригласите команду</span>
             </button>
           )}
+        </div>
+      )}
+      {exportDialogDataset && (
+        <div
+          className="dataset-export-dialog"
+          onClick={() => setExportDialogDataset(null)}
+          role="presentation"
+        >
+          <section
+            aria-labelledby="dataset-export-title"
+            aria-modal="true"
+            className="dataset-export-dialog__panel"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+          >
+            <header className="dataset-export-dialog__header">
+              <div>
+                <h2 id="dataset-export-title">Экспорт датасета</h2>
+                <p>{exportDialogDataset.name}</p>
+              </div>
+              <button
+                aria-label="Закрыть"
+                className="dataset-export-dialog__close"
+                onClick={() => setExportDialogDataset(null)}
+                type="button"
+              >
+                ×
+              </button>
+            </header>
+            <div className="dataset-export-dialog__body">
+              <fieldset className="dataset-export-dialog__group">
+                <legend>Сплиты</legend>
+                {([
+                  ['train', 'Train'],
+                  ['val', 'Val'],
+                  ['test', 'Test'],
+                ] as const).map(([split, label]) => (
+                  <label key={split}>
+                    <input
+                      checked={selectedExportSplits.includes(split)}
+                      onChange={(event) => setSelectedExportSplits((current) => event.target.checked
+                        ? [...current, split]
+                        : current.filter((value) => value !== split))}
+                      type="checkbox"
+                    />
+                    {label}
+                  </label>
+                ))}
+              </fieldset>
+              <fieldset className="dataset-export-dialog__group dataset-export-dialog__classes">
+                <legend>Классы</legend>
+                {isLoadingExportClasses ? (
+                  <p>Загружаем классы...</p>
+                ) : exportClassError ? (
+                  <p className="dataset-export-dialog__error" role="alert">{exportClassError}</p>
+                ) : exportClasses.length === 0 ? (
+                  <p>В датасете нет классов.</p>
+                ) : (
+                  <>
+                    <button
+                      className="dataset-export-dialog__select-all"
+                      onClick={() => setSelectedExportClassIds(
+                        selectedExportClassIds.length === exportClasses.length
+                          ? []
+                          : exportClasses.map(({ id }) => id),
+                      )}
+                      type="button"
+                    >
+                      {selectedExportClassIds.length === exportClasses.length ? 'Снять выбор' : 'Выбрать все'}
+                    </button>
+                    <div className="dataset-export-dialog__class-list">
+                      {exportClasses.map(({ id, name, count }) => (
+                        <label key={id}>
+                          <input
+                            checked={selectedExportClassIds.includes(id)}
+                            onChange={(event) => setSelectedExportClassIds((current) => event.target.checked
+                              ? [...current, id]
+                              : current.filter((classId) => classId !== id))}
+                            type="checkbox"
+                          />
+                          <span>{name}</span>
+                          <small>{count}</small>
+                        </label>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </fieldset>
+              {exportDialogError && <p className="dataset-export-dialog__error" role="alert">{exportDialogError}</p>}
+            </div>
+            <footer className="dataset-export-dialog__footer">
+              <button className="button button--quiet" onClick={() => setExportDialogDataset(null)} type="button">Отмена</button>
+              <button
+                className="button button--primary"
+                disabled={isLoadingExportClasses || Boolean(exportClassError)}
+                onClick={submitExport}
+                type="button"
+              >
+                Экспортировать
+              </button>
+            </footer>
+          </section>
         </div>
       )}
     </section>

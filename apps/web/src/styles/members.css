@@ -79,7 +79,7 @@
 
 .member-select:disabled { color: #aeb5b9; opacity: 1; }
 .icon-button { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid #5b646b; border-radius: 6px; background: transparent; color: #aeb5b9; cursor: pointer; }
-.icon-button:hover { border-color: var(--app-accent); color: #ff9a63; }
+.icon-button:hover { border-color: #F85025; color: #F85025; }
 .icon-button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.6; }
 .members-side { display: grid; gap: 14px; }
 .roles-panel { padding: 22px; }

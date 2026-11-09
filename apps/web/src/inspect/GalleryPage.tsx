@@ -191,10 +191,12 @@ export const GalleryPage: React.FC = () => {
   const navigate = useNavigate();
 
   const [items, setItems] = useState<GalleryItem[]>([]);
+  const [itemsDatasetId, setItemsDatasetId] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<{ datasetId: string; reloadKey: number; message: string } | null>(null);
   const [maskOpacity, setMaskOpacity] = useState(0.9);
   const [filter, setFilter] = useState<GalleryFilter>('all');
+  const [allItemsCount, setAllItemsCount] = useState(0);
   const [splitFilter, setSplitFilter] = useState<SplitFilter>('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [objectCountFilter, setObjectCountFilter] = useState<ObjectCountFilter>('all');
@@ -236,6 +238,7 @@ export const GalleryPage: React.FC = () => {
   const [pageInput, setPageInput] = useState('1');
   const [activeItem, setActiveItem] = useState<GalleryItem | null>(null);
   const pendingNavigation = useRef<'next' | 'previous' | null>(null);
+  const classFilterRef = useRef<HTMLDetailsElement>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [canDeleteImages, setCanDeleteImages] = useState(false);
   const [deletingImageId, setDeletingImageId] = useState<number | null>(null);
@@ -257,22 +260,38 @@ export const GalleryPage: React.FC = () => {
         if (splitFilter !== 'all') params.set('split', splitFilter);
         if (statusFilter !== 'all') params.set('status', statusFilter);
         if (objectCountFilter !== 'all') params.set('object_count', objectCountFilter);
-        if (filter !== 'all') params.set('labeled', String(filter === 'labeled'));
         if (appliedSearch) params.set('search', appliedSearch);
         selectedClassIds.forEach((classId) => params.append('class_ids', String(classId)));
 
-        const { data } = await apiClient.get<{
-          total: number;
-          labeled_count: number;
-          unlabeled_count: number;
-          task: string;
-          classes: Array<{ id: number; name: string; count: number }>;
-          items: GalleryItem[];
-        }>(`/datasets/${datasetId}/samples?${params.toString()}`, { signal: controller.signal });
+        const pageParams = new URLSearchParams(params);
+        if (filter !== 'all') pageParams.set('labeled', String(filter === 'labeled'));
+        const countParams = new URLSearchParams(params);
+        countParams.set('page', '1');
+        countParams.set('page_size', '1');
+
+        const countRequest = filter === 'all'
+          ? Promise.resolve(null)
+          : apiClient.get<{ total: number }>(
+              `/datasets/${datasetId}/samples?${countParams.toString()}`,
+              { signal: controller.signal },
+            );
+        const [{ data }, countResponse] = await Promise.all([
+          apiClient.get<{
+            total: number;
+            labeled_count: number;
+            unlabeled_count: number;
+            task: string;
+            classes: Array<{ id: number; name: string; count: number }>;
+            items: GalleryItem[];
+          }>(`/datasets/${datasetId}/samples?${pageParams.toString()}`, { signal: controller.signal }),
+          countRequest,
+        ]);
 
         setItems(data.items);
+        setItemsDatasetId(datasetId);
         setItemsPage(page);
         setTotalItems(data.total);
+        setAllItemsCount(countResponse?.data.total ?? data.total);
         setLabeledCount(data.labeled_count);
         setUnlabeledCount(data.unlabeled_count);
         setDatasetTask(data.task);
@@ -491,7 +510,7 @@ export const GalleryPage: React.FC = () => {
     rejected: 'На доработку',
   };
 
-  if (loading) {
+  if (loading && (items.length === 0 || itemsDatasetId !== datasetId)) {
     return (
       <section className="gallery-state" aria-live="polite">
         <span className="gallery-state__spinner" />
@@ -548,7 +567,7 @@ export const GalleryPage: React.FC = () => {
       <div className="gallery-toolbar">
         <div className="gallery-tabs" role="tablist" aria-label="Фильтр по статусу разметки">
           {([
-            ['all', 'Все', totalItems],
+            ['all', 'Все', allItemsCount],
             ['labeled', 'Размеченные', labeledCount],
             ['unlabeled', 'Без разметки', unlabeledCount],
           ] as const).map(([value, label, count]) => (
@@ -610,7 +629,7 @@ export const GalleryPage: React.FC = () => {
           </select>
         </label>
         {availableClasses.length > 0 && (
-          <details className="gallery-class-filter">
+          <details className="gallery-class-filter" ref={classFilterRef}>
             <summary>Классы{pendingClassIds.length > 0 ? `: ${pendingClassIds.length}` : ''}</summary>
             <div className="gallery-class-filter__options">
               <div className="gallery-class-filter__list">
@@ -636,6 +655,7 @@ export const GalleryPage: React.FC = () => {
                 onClick={() => {
                   setPage(1);
                   setSelectedClassIds(pendingClassIds);
+                  if (classFilterRef.current) classFilterRef.current.open = false;
                 }}
                 type="button"
               >
@@ -650,7 +670,9 @@ export const GalleryPage: React.FC = () => {
             key={classId}
             onClick={() => {
               setPage(1);
-              setPendingClassIds((current) => current.filter((id) => id !== classId));
+              const nextClassIds = pendingClassIds.filter((id) => id !== classId);
+              setPendingClassIds(nextClassIds);
+              setSelectedClassIds(nextClassIds);
             }}
             type="button"
           >
@@ -659,14 +681,15 @@ export const GalleryPage: React.FC = () => {
         ))}
         <button className="gallery-filter-reset" onClick={clearFilters} type="button">Сбросить</button>
       </div>
-      {visibleItems.length === 0 ? (
-        <div className="gallery-empty">
-          <h2>{totalItems ? 'Ничего не найдено' : 'Галерея пока пуста'}</h2>
-          <p>{totalItems ? 'Измените запрос или выберите другой статус.' : 'В этом датасете пока нет изображений для показа.'}</p>
-        </div>
-      ) : (
-        <div className="gallery-grid">
-          {visibleItems.map((item) => {
+      <div className={`gallery-results${loading ? ' is-loading' : ''}`} aria-busy={loading}>
+        {visibleItems.length === 0 ? (
+          <div className="gallery-empty">
+            <h2>{totalItems ? 'Ничего не найдено' : 'Галерея пока пуста'}</h2>
+            <p>{totalItems ? 'Измените запрос или выберите другой статус.' : 'В этом датасете пока нет изображений для показа.'}</p>
+          </div>
+        ) : (
+          <div className="gallery-grid">
+            {visibleItems.map((item) => {
             const isLabeled = item.objects_count > 0;
             return (
               <article className="gallery-card" key={item.id}>
@@ -749,9 +772,10 @@ export const GalleryPage: React.FC = () => {
                 )}
               </article>
             );
-          })}
-        </div>
-      )}
+            })}
+          </div>
+        )}
+      </div>
 
       {totalItems > 0 && (
         <footer className="gallery-pagination">

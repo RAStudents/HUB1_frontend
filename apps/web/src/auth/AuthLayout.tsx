@@ -14,7 +14,7 @@ export const AuthLayout = ({ title, description, children }: AuthLayoutProps) =>
       <section className="auth-card">
         <div className="auth-brand">
           <span className="auth-logo" aria-hidden="true">
-            <img src="/brand-mark.svg" alt="" />
+            <img src="/orange.svg" alt="" />
           </span>
           <span>HUB</span>
         </div>

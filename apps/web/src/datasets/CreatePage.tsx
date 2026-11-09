@@ -1,6 +1,9 @@
 import { useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { apiClient } from '../api/client';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 type Task = 'detect' | 'obb' | 'segment';
 
@@ -10,6 +13,37 @@ type TaskOption = {
   description: string;
   icon: ReactNode;
 };
+
+interface ImportJob {
+  import_id: number;
+  dataset_id: number | null;
+  status: 'queued' | 'processing' | 'completed' | 'failed';
+  stage: 'queued' | 'processing' | 'extracting' | 'normalizing' | 'copying'
+    | 'discovering' | 'importing' | 'finalizing' | 'building_gallery' | 'completed' | 'failed';
+  progress: number;
+  total_samples: number;
+  processed_samples: number;
+  imported_samples: number;
+  parse_errors: number;
+  error?: string | null;
+}
+
+const importStageLabels: Record<ImportJob['stage'], string> = {
+  queued: 'Импорт ожидает обработки…',
+  processing: 'Подготавливаем импорт…',
+  extracting: 'Распаковываем архив…',
+  normalizing: 'Подготавливаем изображения…',
+  copying: 'Копируем файлы датасета…',
+  discovering: 'Проверяем структуру и кадры…',
+  importing: 'Импортируем кадры и разметку…',
+  finalizing: 'Завершаем импорт…',
+  building_gallery: 'Создаём галерею…',
+  completed: 'Импорт завершён',
+  failed: 'Ошибка импорта',
+};
+
+const wait = (milliseconds: number) =>
+  new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
 const taskOptions: TaskOption[] = [
   {
@@ -52,6 +86,7 @@ export const CreatePage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadFinished, setUploadFinished] = useState(false);
+  const [importProgress, setImportProgress] = useState<ImportJob | null>(null);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -75,6 +110,7 @@ export const CreatePage = () => {
     setIsLoading(true);
     setUploadProgress(0);
     setUploadFinished(false);
+    setImportProgress(null);
     try {
       const formData = new FormData();
       formData.append('name', name.trim());
@@ -83,7 +119,7 @@ export const CreatePage = () => {
       formData.append('file', file);
 
       const token = localStorage.getItem('access_token');
-      const response = await axios.post('http://localhost:8000/api/datasets/upload', formData, {
+      const response = await axios.post(`${API_BASE_URL}/datasets/upload`, formData, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         onUploadProgress: (progressEvent) => {
           if (!progressEvent.total) return;
@@ -93,11 +129,35 @@ export const CreatePage = () => {
         },
       });
 
-      const datasetId = response.data.dataset_id ?? response.data.id;
-      navigate(`/datasets/${datasetId}/gallery`);
+      setUploadFinished(true);
+      let importJob = response.data as ImportJob;
+      setImportProgress(importJob);
+
+      while (importJob.status === 'queued' || importJob.status === 'processing') {
+        await wait(1000);
+        const { data } = await apiClient.get<ImportJob>(`/datasets/imports/${importJob.import_id}`, {
+          baseURL: API_BASE_URL,
+        });
+        importJob = data;
+        setImportProgress(importJob);
+      }
+
+      if (importJob.status === 'failed') {
+        throw new Error(importJob.error || 'Не удалось импортировать датасет.');
+      }
+      if (importJob.dataset_id === null) {
+        throw new Error('Импорт завершён, но сервер не вернул идентификатор датасета.');
+      }
+      navigate(`/datasets/${importJob.dataset_id}/gallery`);
     } catch (err) {
       const detail = axios.isAxiosError(err) ? err.response?.data?.detail : null;
-      setError(typeof detail === 'string' ? detail : 'Ошибка создания датасета');
+      setError(
+        typeof detail === 'string'
+          ? detail
+          : err instanceof Error
+            ? err.message
+            : 'Ошибка создания датасета',
+      );
     } finally {
       setIsLoading(false);
     }
@@ -234,11 +294,38 @@ export const CreatePage = () => {
           </button>
         </div>
         {isLoading && (
-          <p className="form-hint" role="status" aria-live="polite">
-            {uploadFinished
-              ? 'ZIP загружен. Импортируем кадры и создаём превью; большой датасет может обрабатываться несколько минут.'
-              : `Загрузка ZIP: ${uploadProgress}%`}
-          </p>
+          <div className="import-progress" role="status" aria-live="polite">
+            <div className="import-progress__summary">
+              <span>
+                {!uploadFinished
+                  ? `Загрузка ZIP: ${uploadProgress}%`
+                  : importProgress
+                    ? importStageLabels[importProgress.stage]
+                    : 'Запускаем импорт…'}
+              </span>
+              <strong>{uploadFinished ? importProgress?.progress ?? 0 : uploadProgress}%</strong>
+            </div>
+            <div
+              aria-label="Прогресс импорта датасета"
+              aria-valuemax={100}
+              aria-valuemin={0}
+              aria-valuenow={uploadFinished ? importProgress?.progress ?? 0 : uploadProgress}
+              className="import-progress__track"
+              role="progressbar"
+            >
+              <span
+                style={{
+                  width: `${uploadFinished ? importProgress?.progress ?? 0 : uploadProgress}%`,
+                }}
+              />
+            </div>
+            {uploadFinished && importProgress && importProgress.total_samples > 0 && (
+              <span className="import-progress__details">
+                Обработано {importProgress.processed_samples} из {importProgress.total_samples} кадров
+                {importProgress.parse_errors > 0 && ` · ошибок разметки: ${importProgress.parse_errors}`}
+              </span>
+            )}
+          </div>
         )}
       </form>
     </section>

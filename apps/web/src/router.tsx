@@ -22,7 +22,7 @@ const Layout = () => {
       <header className="app-topbar">
         <div className="app-topbar__inner">
           <Link to="/" className="app-brand" aria-label="HUB, к датасетам">
-            <span className="app-brand__logo" aria-hidden="true"><img src="/brand-mark-app.svg" alt="" /></span>
+            <span className="app-brand__logo" aria-hidden="true"><img src="/orange.svg" alt="" /></span>
             <span>HUB</span>
           </Link>
           <nav className="app-navigation" aria-label="Основная навигация">

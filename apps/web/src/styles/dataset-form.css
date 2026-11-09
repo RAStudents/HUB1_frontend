@@ -142,6 +142,13 @@
 .form-hint { display: flex; align-items: center; gap: 7px; color: #aab2b6; font-size: 11px; }
 .form-hint svg { width: 14px; height: 14px; fill: none; stroke: currentColor; }
 
+.import-progress { display: grid; gap: 8px; color: #aab2b6; font-size: 12px; }
+.import-progress__summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.import-progress__summary strong { color: #ff9a63; font-variant-numeric: tabular-nums; }
+.import-progress__track { height: 8px; overflow: hidden; border-radius: 999px; background: #252b2f; }
+.import-progress__track > span { display: block; height: 100%; border-radius: inherit; background: var(--app-accent); transition: width 250ms ease; }
+.import-progress__details { color: var(--app-muted); font-size: 11px; }
+
 .yaml-upload {
   display: flex;
   min-height: 42px;

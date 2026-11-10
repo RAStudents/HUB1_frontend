@@ -332,8 +332,8 @@ export const DashboardPage = () => {
               </button>
             </header>
             <div className="dataset-export-dialog__body">
-              <fieldset className="dataset-export-dialog__group">
-                <legend>Сплиты</legend>
+              <section aria-labelledby="dataset-export-splits-title" className="dataset-export-dialog__group">
+                <h3 id="dataset-export-splits-title">Сплиты</h3>
                 {([
                   ['train', 'Train'],
                   ['val', 'Val'],
@@ -350,9 +350,9 @@ export const DashboardPage = () => {
                     {label}
                   </label>
                 ))}
-              </fieldset>
-              <fieldset className="dataset-export-dialog__group dataset-export-dialog__classes">
-                <legend>Классы</legend>
+              </section>
+              <section aria-labelledby="dataset-export-classes-title" className="dataset-export-dialog__group dataset-export-dialog__classes">
+                <h3 id="dataset-export-classes-title">Классы</h3>
                 {isLoadingExportClasses ? (
                   <p>Загружаем классы...</p>
                 ) : exportClassError ? (
@@ -389,7 +389,7 @@ export const DashboardPage = () => {
                     </div>
                   </>
                 )}
-              </fieldset>
+              </section>
               {exportDialogError && <p className="dataset-export-dialog__error" role="alert">{exportDialogError}</p>}
             </div>
             <footer className="dataset-export-dialog__footer">

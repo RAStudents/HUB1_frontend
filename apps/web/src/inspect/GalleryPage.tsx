@@ -231,8 +231,6 @@ export const GalleryPage: React.FC = () => {
   const [totalItems, setTotalItems] = useState(0);
   const [labeledCount, setLabeledCount] = useState(0);
   const [unlabeledCount, setUnlabeledCount] = useState(0);
-  const [search, setSearch] = useState('');
-  const [appliedSearch, setAppliedSearch] = useState('');
   const [page, setPage] = useState(1);
   const [itemsPage, setItemsPage] = useState(1);
   const [pageInput, setPageInput] = useState('1');
@@ -245,6 +243,18 @@ export const GalleryPage: React.FC = () => {
   const [datasetRole, setDatasetRole] = useState<string | undefined>();
   const [datasetNameState, setDatasetNameState] = useState({ datasetId, name: '' });
   const [reviewingSampleId, setReviewingSampleId] = useState<number | null>(null);
+
+  useEffect(() => {
+    const closeClassFilterOnOutsideClick = (event: PointerEvent) => {
+      const classFilter = classFilterRef.current;
+      if (classFilter?.open && event.target instanceof Node && !classFilter.contains(event.target)) {
+        classFilter.open = false;
+      }
+    };
+
+    document.addEventListener('pointerdown', closeClassFilterOnOutsideClick);
+    return () => document.removeEventListener('pointerdown', closeClassFilterOnOutsideClick);
+  }, []);
 
   useEffect(() => {
     if (!datasetId) return;
@@ -260,7 +270,6 @@ export const GalleryPage: React.FC = () => {
         if (splitFilter !== 'all') params.set('split', splitFilter);
         if (statusFilter !== 'all') params.set('status', statusFilter);
         if (objectCountFilter !== 'all') params.set('object_count', objectCountFilter);
-        if (appliedSearch) params.set('search', appliedSearch);
         selectedClassIds.forEach((classId) => params.append('class_ids', String(classId)));
 
         const pageParams = new URLSearchParams(params);
@@ -337,7 +346,6 @@ export const GalleryPage: React.FC = () => {
     statusFilter,
     objectCountFilter,
     filter,
-    appliedSearch,
     selectedClassIds,
     reloadKey,
   ]);
@@ -444,8 +452,6 @@ export const GalleryPage: React.FC = () => {
     setObjectCountFilter('all');
     setSelectedClassIds([]);
     setPendingClassIds([]);
-    setSearch('');
-    setAppliedSearch('');
     setPage(1);
   };
 
@@ -565,43 +571,24 @@ export const GalleryPage: React.FC = () => {
       </header>
 
       <div className="gallery-toolbar">
-        <div className="gallery-tabs" role="tablist" aria-label="Фильтр по статусу разметки">
-          {([
-            ['all', 'Все', allItemsCount],
-            ['labeled', 'Размеченные', labeledCount],
-            ['unlabeled', 'Без разметки', unlabeledCount],
-          ] as const).map(([value, label, count]) => (
-            <button
-              aria-selected={filter === value}
-              className={`gallery-tab${filter === value ? ' is-active' : ''}`}
-              key={value}
-              onClick={() => { setPage(1); setFilter(value); }}
-              role="tab"
-              type="button"
-            >
-              {label}<span>{count}</span>
-            </button>
-          ))}
-        </div>
-        <label className="gallery-search">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 4.5 4.5" /></svg>
-          <input
-            aria-label="Поиск по имени файла"
-            onChange={(event) => setSearch(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                setPage(1);
-                setAppliedSearch(search.trim());
-              }
-            }}
-            placeholder="Поиск по имени файла"
-            type="search"
-            value={search}
-          />
-        </label>
+      <div className="gallery-tabs" role="tablist" aria-label="Фильтр по статусу разметки">
+        {([
+          ['all', 'Все', allItemsCount],
+          ['labeled', 'Размеченные', labeledCount],
+          ['unlabeled', 'Без разметки', unlabeledCount],
+        ] as const).map(([value, label, count]) => (
+          <button
+            aria-selected={filter === value}
+            className={`gallery-tab${filter === value ? ' is-active' : ''}`}
+            key={value}
+            onClick={() => { setPage(1); setFilter(value); }}
+            role="tab"
+            type="button"
+          >
+            {label}<span>{count}</span>
+          </button>
+        ))}
       </div>
-
       <div className="gallery-filters" aria-label="Дополнительные фильтры">
         <label>
           Сплит
@@ -664,22 +651,8 @@ export const GalleryPage: React.FC = () => {
             </div>
           </details>
         )}
-        {pendingClassIds.map((classId) => (
-          <button
-            className="gallery-filter-reset"
-            key={classId}
-            onClick={() => {
-              setPage(1);
-              const nextClassIds = pendingClassIds.filter((id) => id !== classId);
-              setPendingClassIds(nextClassIds);
-              setSelectedClassIds(nextClassIds);
-            }}
-            type="button"
-          >
-            {classCatalog[classId] || `Класс ${classId}`} ×
-          </button>
-        ))}
         <button className="gallery-filter-reset" onClick={clearFilters} type="button">Сбросить</button>
+      </div>
       </div>
       <div className={`gallery-results${loading ? ' is-loading' : ''}`} aria-busy={loading}>
         {visibleItems.length === 0 ? (

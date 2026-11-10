@@ -42,10 +42,6 @@ export const LoginPage = () => {
             ).join('');
 
             sessionStorage.setItem('yandex_oauth_state', state);
-            authorizationUrl.searchParams.set(
-                'redirect_uri',
-                `${window.location.origin}/auth/yandex/callback`,
-            );
             authorizationUrl.searchParams.set('state', state);
             window.location.assign(authorizationUrl.toString());
         } catch (err: any) {

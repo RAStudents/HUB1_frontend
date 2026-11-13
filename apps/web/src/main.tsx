@@ -11,6 +11,7 @@ import './styles/dataset-form.css';
 import './styles/members.css';
 import './styles/gallery.css';
 import './styles/profile.css';
+import './styles/notifications.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>

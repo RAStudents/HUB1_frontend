@@ -6,6 +6,7 @@ import { YandexLoginResponse } from '../api/types';
 import { useAuth } from './AuthContext';
 import { AuthField } from './AuthField';
 import { AuthLayout } from './AuthLayout';
+import { getErrorMessage } from './errorMessage';
 
 export const LoginPage = () => {
     const [email, setEmail] = useState('');
@@ -23,8 +24,8 @@ export const LoginPage = () => {
         try {
             await login(email, password);
             navigate('/');
-        } catch (err: any) {
-            setError(err.response?.data?.detail || 'Ошибка входа');
+        } catch (err: unknown) {
+            setError(getErrorMessage(err, 'Ошибка входа'));
         } finally {
             setIsSubmitting(false);
         }
@@ -36,16 +37,13 @@ export const LoginPage = () => {
         try {
             const response = await apiClient.get<YandexLoginResponse>('/auth/yandex/login');
             const authorizationUrl = new URL(response.data.auth_url);
-            const state = Array.from(
-                crypto.getRandomValues(new Uint8Array(32)),
-                (byte) => byte.toString(16).padStart(2, '0'),
-            ).join('');
+            const state = authorizationUrl.searchParams.get('state');
+            if (!state) throw new Error('Сервер не вернул OAuth state');
 
             sessionStorage.setItem('yandex_oauth_state', state);
-            authorizationUrl.searchParams.set('state', state);
             window.location.assign(authorizationUrl.toString());
-        } catch (err: any) {
-            setError(err.response?.data?.detail || 'Не удалось начать вход через Яндекс');
+        } catch (err: unknown) {
+            setError(getErrorMessage(err, 'Не удалось начать вход через Яндекс'));
             setIsYandexLoading(false);
         }
     };

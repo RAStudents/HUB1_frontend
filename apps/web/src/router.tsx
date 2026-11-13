@@ -11,11 +11,38 @@ import { MembersPage } from './datasets/MembersPage';
 import { GalleryPage } from './inspect/GalleryPage'; // Импортируем страницу галереи
 import { ProfilePage } from './profile/ProfilePage';
 import { UserAvatar } from './auth/UserAvatar';
+import { NotificationsPage } from './notifications/NotificationsPage';
+import { apiClient } from './api/client';
+import { useEffect, useState } from 'react';
 
 // ============ LAYOUT ============
 const Layout = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    const loadUnreadCount = async () => {
+      try {
+        const { data } = await apiClient.get<{ unread_count: number }>('/notifications', {
+          params: { page: 1, page_size: 1 },
+        });
+        if (active) setUnreadCount(data.unread_count);
+      } catch (error) {
+        console.error('Не удалось загрузить счётчик уведомлений:', error);
+      }
+    };
+
+    void loadUnreadCount();
+    const intervalId = window.setInterval(loadUnreadCount, 60_000);
+    window.addEventListener('notifications:changed', loadUnreadCount);
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+      window.removeEventListener('notifications:changed', loadUnreadCount);
+    };
+  }, []);
 
   return (
     <div className="app-shell">
@@ -27,6 +54,11 @@ const Layout = () => {
           </Link>
           <nav className="app-navigation" aria-label="Основная навигация">
             <Link to="/" className="app-navigation__link">Датасеты</Link>
+            <Link to="/notifications" className="app-navigation__link app-navigation__notifications">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg>
+              <span>Уведомления</span>
+              {unreadCount > 0 && <span className="app-notification-count">{unreadCount > 99 ? '99+' : unreadCount}</span>}
+            </Link>
           </nav>
           <div className="app-account">
             <Link to="/profile" className="app-account__email" aria-label="Открыть профиль">
@@ -79,6 +111,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <DashboardPage /> },
       { path: 'profile', element: <ProfilePage /> },
+      { path: 'notifications', element: <NotificationsPage /> },
       { path: 'datasets/create', element: <CreatePage /> },
       { path: 'datasets/:datasetId/members', element: <MembersPage /> },
       { path: 'datasets/:datasetId/gallery', element: <GalleryPage /> }, // Динамический роут для галереи конкретного датасета

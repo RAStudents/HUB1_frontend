@@ -1,0 +1,40 @@
+.consent-banner {
+  position: fixed;
+  z-index: 1100;
+  right: 20px;
+  bottom: 20px;
+  width: min(440px, calc(100vw - 40px));
+  padding: 15px 18px;
+  border: 1px solid #4b91d1;
+  border-radius: 9px;
+  background: #193b5c;
+  box-shadow: 0 8px 26px rgb(0 0 0 / 28%);
+  color: #eef6ff;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.consent-banner a {
+  color: #8bc6ff;
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.consent-banner a:hover {
+  color: #fff;
+}
+
+.consent-banner a:focus-visible {
+  border-radius: 2px;
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
+@media (max-width: 600px) {
+  .consent-banner {
+    right: 12px;
+    bottom: 12px;
+    width: calc(100vw - 24px);
+  }
+}

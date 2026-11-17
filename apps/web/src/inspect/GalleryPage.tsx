@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { apiClient } from '../api/client';
+import { DatasetStatisticsPanel } from './DatasetStatisticsPanel';
 
 interface GalleryItem {
   id: number;
@@ -493,6 +494,7 @@ export const GalleryPage: React.FC = () => {
           ? { ...entry, status: response.data.status }
           : entry
       )));
+      setReloadKey((key) => key + 1);
     } catch (requestError) {
       const detail = axios.isAxiosError(requestError)
         ? requestError.response?.data?.detail
@@ -569,6 +571,8 @@ export const GalleryPage: React.FC = () => {
           </button>
         </div>
       </header>
+
+      {datasetId && <DatasetStatisticsPanel datasetId={datasetId} reloadKey={reloadKey} />}
 
       <div className="gallery-toolbar">
       <div className="gallery-tabs" role="tablist" aria-label="Фильтр по статусу разметки">
@@ -818,7 +822,48 @@ export const GalleryPage: React.FC = () => {
                   ›
                 </button>
               </div>
-              <footer className="gallery-modal__footer">Используйте клавиши ← и → для перехода между кадрами · Esc — закрыть</footer>
+              <footer className="gallery-modal__footer">
+                <span>Используйте клавиши ← и → для перехода между кадрами · Esc — закрыть</span>
+                {activeItem.sample_id && (
+                  <button
+                    className="gallery-button gallery-button--primary"
+                    onClick={() => {
+                      const editorSample = {
+                        ...activeItem,
+                        dataset_id: Number(datasetId),
+                        split: activeItem.split || 'train',
+                        status: activeItem.status || 'unlabeled',
+                      };
+                      navigate(`/datasets/${datasetId}/annotate/${activeItem.sample_id}?split=${editorSample.split}&page=${itemsPage}`, {
+                        state: {
+                          sample: editorSample,
+                          items: items.map((item) => ({
+                            ...item,
+                            dataset_id: Number(datasetId),
+                            split: item.split || 'train',
+                            status: item.status || 'unlabeled',
+                          })),
+                          datasetName: datasetNameState.name,
+                          classNames: classCatalog,
+                          datasetRole,
+                          page: itemsPage,
+                          totalSamples: totalItems,
+                          labeledSamples: labeledCount,
+                          filters: {
+                            status: statusFilter,
+                            objectCount: objectCountFilter,
+                            labeled: filter === 'all' ? undefined : filter === 'labeled',
+                            classIds: selectedClassIds,
+                          },
+                        },
+                      });
+                    }}
+                    type="button"
+                  >
+                    Открыть разметку
+                  </button>
+                )}
+              </footer>
             </section>
           </div>,
           document.body,

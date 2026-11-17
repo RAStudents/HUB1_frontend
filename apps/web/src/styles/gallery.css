@@ -48,6 +48,130 @@
   gap: 12px;
 }
 
+.dataset-statistics {
+  display: grid;
+  gap: 14px;
+  margin: -8px 0 25px;
+}
+
+.dataset-statistics__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dataset-statistics__header h2 {
+  margin: 0;
+  color: #b7bec2;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dataset-statistics__refresh { min-height: 32px; padding: 0 9px; font-size: 11px; }
+
+.dataset-statistics__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.dataset-stat-card {
+  display: flex;
+  min-width: 0;
+  min-height: 140px;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid #515a60;
+  border-radius: 9px;
+  background: var(--app-surface);
+  box-shadow: 0 5px 12px rgb(0 0 0 / 10%);
+}
+
+.dataset-stat-card__label {
+  color: #b7bec2;
+  font-size: 11px;
+}
+
+.dataset-stat-card__value {
+  margin-top: -6px;
+  color: #e7e9ea;
+  font-size: 30px;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.dataset-stat-card__hint {
+  color: var(--app-muted);
+  font-size: 10px;
+}
+
+.dataset-stat-progress,
+.dataset-stat-class__track,
+.dataset-stat-split__track {
+  display: block;
+  overflow: hidden;
+  height: 7px;
+  border-radius: 5px;
+  background: #30373c;
+}
+
+.dataset-stat-progress span,
+.dataset-stat-class__track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #49c992;
+}
+
+.dataset-stat-progress.is-complete span { background: #49c992; }
+
+.dataset-stat-status-bar {
+  display: flex;
+  height: 7px;
+  overflow: hidden;
+  border-radius: 5px;
+  background: #30373c;
+}
+
+.dataset-stat-status-bar span { min-width: 2px; }
+
+.dataset-stat-status-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px 14px;
+}
+
+.dataset-stat-status,
+.dataset-stat-status > span {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.dataset-stat-status { justify-content: space-between; gap: 7px; color: #b7bec2; font-size: 10px; }
+.dataset-stat-status > span { gap: 6px; }
+.dataset-stat-status i { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 2px; }
+.dataset-stat-status strong { color: #e7e9ea; font-size: 10px; }
+
+.dataset-stat-class { display: grid; gap: 5px; }
+.dataset-stat-class > div { display: flex; justify-content: space-between; gap: 8px; color: #d3d8da; font-size: 10px; }
+.dataset-stat-class > div strong { color: #e7e9ea; font-weight: 600; }
+.dataset-stat-class__track { height: 5px; }
+.dataset-stat-class__track i { background: var(--class-color, #4b9dff); }
+.dataset-statistics__loading,
+.dataset-statistics__error {
+  padding: 14px 16px;
+  border: 1px solid #515a60;
+  border-radius: 8px;
+  background: var(--app-surface);
+  color: var(--app-muted);
+  font-size: 12px;
+}
+.dataset-statistics__error { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-color: rgb(223 48 51 / 40%); color: #ffaaa5; }
+.dataset-statistics__error button { border: 0; background: transparent; color: #ffad7d; cursor: pointer; }
+
 .gallery-opacity {
   display: flex;
   min-width: 190px;
@@ -688,10 +812,21 @@
 .gallery-modal__nav--previous { left: 18px; }
 .gallery-modal__nav--next { right: 18px; }
 .gallery-modal__nav:disabled { opacity: 0.3; cursor: not-allowed; }
-.gallery-modal__footer { padding: 9px 14px; color: var(--app-muted); font-size: 11px; text-align: center; }
+.gallery-modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 14px;
+  color: var(--app-muted);
+  font-size: 11px;
+}
+
+.gallery-modal__footer .gallery-button { min-height: 34px; padding: 0 11px; font-size: 11px; }
 
 @media (max-width: 1000px) {
   .gallery-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .dataset-statistics__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 1100px) {
@@ -713,6 +848,7 @@
 @media (max-width: 460px) {
   .gallery-heading h1 { font-size: 25px; }
   .gallery-heading__actions { align-items: stretch; flex-direction: column; }
+  .dataset-statistics__grid { grid-template-columns: 1fr; }
   .gallery-opacity { min-width: 0; }
   .gallery-button--primary { min-height: 42px; }
   .gallery-grid { grid-template-columns: 1fr; }

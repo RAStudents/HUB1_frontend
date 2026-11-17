@@ -92,12 +92,17 @@
 }
 
 .dataset-card__preview {
+  position: relative;
   display: block;
   width: 100%;
+  overflow: hidden;
   aspect-ratio: 1.91 / 1;
-  object-fit: cover;
   background: #d9e3e8;
 }
+
+.dataset-card__preview-image { display: block; width: 100%; height: 100%; object-fit: cover; }
+.dataset-card__preview-annotations { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.dataset-card__preview--message { display: grid; place-items: center; color: #777f84; font-size: 11px; }
 
 .dataset-card__content {
   display: flex;

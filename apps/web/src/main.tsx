@@ -12,6 +12,8 @@ import './styles/members.css';
 import './styles/gallery.css';
 import './styles/profile.css';
 import './styles/notifications.css';
+import './styles/review.css';
+import './styles/annotation-editor.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>

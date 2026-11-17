@@ -20,6 +20,25 @@ interface DatasetItem {
   my_role?: 'owner' | 'labeler' | 'observer';
 }
 
+interface PreviewAnnotation {
+  id?: number | null;
+  class_id: number;
+  box?: { x: number; y: number; width: number; height: number } | null;
+  obb?: { x: number; y: number; width: number; height: number; angle_deg: number } | null;
+  polygon?: { points: Array<{ x: number; y: number }> } | null;
+}
+
+interface DatasetPreviewSample {
+  image_url: string;
+  filename: string;
+  annotations: PreviewAnnotation[];
+}
+
+interface DatasetPreviewResponse {
+  items: DatasetPreviewSample[];
+  classes: Array<{ id: number; name: string; count: number }>;
+}
+
 const taskNames: Record<string, string> = {
   detect: 'Bounding Box',
   obb: 'OBB',
@@ -30,6 +49,142 @@ const roleLabels: Record<string, string> = {
   owner: 'Владелец',
   labeler: 'Разметчик',
   observer: 'Наблюдатель',
+};
+
+const PREVIEW_COLORS = ['#ef4444', '#f97316', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899'];
+
+const DatasetCardPreview = ({ datasetId, datasetName }: { datasetId: number; datasetName: string }) => {
+  const [preview, setPreview] = useState<DatasetPreviewSample | null>(null);
+  const [classNames, setClassNames] = useState<Record<number, string>>({});
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const loadPreview = async () => {
+      try {
+        const { data } = await apiClient.get<DatasetPreviewResponse>(
+          `/datasets/${datasetId}/samples`,
+          { params: { page: 1, page_size: 1 }, signal: controller.signal },
+        );
+        if (controller.signal.aborted) return;
+        const firstSample = data.items[0];
+        if (!firstSample) {
+          setError('В датасете пока нет кадров');
+          return;
+        }
+        setPreview(firstSample);
+        setClassNames(Object.fromEntries(data.classes.map(({ id, name }) => [id, name])));
+      } catch (requestError) {
+        if (!controller.signal.aborted) {
+          console.error(`Не удалось загрузить превью датасета ${datasetId}:`, requestError);
+          setError('Не удалось загрузить превью');
+        }
+      }
+    };
+
+    void loadPreview();
+    return () => controller.abort();
+  }, [datasetId]);
+
+  if (error) {
+    return <div className="dataset-card__preview dataset-card__preview--message">{error}</div>;
+  }
+  if (!preview) {
+    return <div aria-label={`Загрузка превью: ${datasetName}`} className="dataset-card__preview dataset-card__preview--message">Загружаем превью...</div>;
+  }
+
+  const colorForClass = (classId: number) => (
+    PREVIEW_COLORS[(classId % PREVIEW_COLORS.length + PREVIEW_COLORS.length) % PREVIEW_COLORS.length]
+  );
+
+  return (
+    <div className="dataset-card__preview">
+      <img
+        alt={datasetName}
+        className="dataset-card__preview-image"
+        onError={() => setError('Не удалось загрузить кадр')}
+        onLoad={(event) => setDimensions({
+          width: event.currentTarget.naturalWidth,
+          height: event.currentTarget.naturalHeight,
+        })}
+        src={preview.image_url}
+      />
+      {dimensions.width > 0 && dimensions.height > 0 && preview.annotations.length > 0 && (
+        <svg
+          aria-hidden="true"
+          className="dataset-card__preview-annotations"
+          preserveAspectRatio="xMidYMid slice"
+          viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
+        >
+          {preview.annotations.map((annotation, index) => {
+            const color = colorForClass(annotation.class_id);
+            const strokeWidth = Math.max(2, dimensions.width * 0.0025);
+            const key = annotation.id ?? `${annotation.class_id}-${index}`;
+            const label = classNames[annotation.class_id] || `class_${annotation.class_id}`;
+            if (annotation.obb) {
+              const { x, y, width, height, angle_deg } = annotation.obb;
+              const centerX = x * dimensions.width;
+              const centerY = y * dimensions.height;
+              const boxWidth = width * dimensions.width;
+              const boxHeight = height * dimensions.height;
+              const left = centerX - boxWidth / 2;
+              const top = centerY - boxHeight / 2;
+              return (
+                <g key={key}>
+                  <rect
+                    fill={`${color}33`}
+                    height={boxHeight}
+                    stroke={color}
+                    strokeWidth={strokeWidth}
+                    transform={`rotate(${angle_deg} ${centerX} ${centerY})`}
+                    width={boxWidth}
+                    x={left}
+                    y={top}
+                  />
+                  <text fill={color} fontSize={Math.max(14, dimensions.width * 0.02)} fontWeight="700" x={left} y={Math.max(16, top - 4)}>{label}</text>
+                </g>
+              );
+            }
+            if (annotation.box) {
+              const { x, y, width, height } = annotation.box;
+              const boxWidth = width * dimensions.width;
+              const boxHeight = height * dimensions.height;
+              const left = x * dimensions.width - boxWidth / 2;
+              const top = y * dimensions.height - boxHeight / 2;
+              return (
+                <g key={key}>
+                  <rect
+                    fill={`${color}33`}
+                    height={boxHeight}
+                    stroke={color}
+                    strokeWidth={strokeWidth}
+                    width={boxWidth}
+                    x={left}
+                    y={top}
+                  />
+                  <text fill={color} fontSize={Math.max(14, dimensions.width * 0.02)} fontWeight="700" x={left} y={Math.max(16, top - 4)}>{label}</text>
+                </g>
+              );
+            }
+            const points = annotation.polygon?.points || [];
+            if (points.length < 3) return null;
+            return (
+              <g key={key}>
+                <polygon
+                  fill={`${color}33`}
+                  points={points.map(({ x, y }) => `${x * dimensions.width},${y * dimensions.height}`).join(' ')}
+                  stroke={color}
+                  strokeWidth={strokeWidth}
+                />
+                <text fill={color} fontSize={Math.max(14, dimensions.width * 0.02)} fontWeight="700" x={points[0].x * dimensions.width} y={Math.max(16, points[0].y * dimensions.height - 4)}>{label}</text>
+              </g>
+            );
+          })}
+        </svg>
+      )}
+    </div>
+  );
 };
 
 export const DashboardPage = () => {
@@ -196,11 +351,7 @@ export const DashboardPage = () => {
 
             return (
               <article className="dataset-card" key={dataset.id} onClick={() => navigate(`/datasets/${dataset.id}/gallery`)} style={{ cursor: 'pointer' }}>
-                {dataset.cover_url ? (
-                  <img className="dataset-card__preview" src={dataset.cover_url} alt={dataset.name} />
-                ) : (
-                  <div className="dataset-card__preview" style={{ background: '#222', display: 'grid', placeItems: 'center', color: '#666' }}>Нет превью</div>
-                )}
+                <DatasetCardPreview datasetId={dataset.id} datasetName={dataset.name} />
 
                 <div className="dataset-card__content">
                   <div className="dataset-card__title-row">

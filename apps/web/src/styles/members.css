@@ -79,7 +79,7 @@
 
 .member-select:disabled { color: #aeb5b9; opacity: 1; }
 .icon-button { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid #5b646b; border-radius: 6px; background: transparent; color: #aeb5b9; cursor: pointer; }
-.icon-button:hover { border-color: var(--app-accent); color: #ff9a63; }
+.icon-button:hover { border-color: #F85025; color: #F85025; }
 .icon-button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.6; }
 .members-side { display: grid; gap: 14px; }
 .roles-panel { padding: 22px; }
@@ -96,6 +96,8 @@
 .members-note { display: flex; align-items: flex-start; gap: 9px; padding: 13px; border: 1px solid #596269; border-radius: 7px; color: #aab2b6; font-size: 11px; line-height: 1.5; }
 .members-note svg { width: 15px; height: 15px; flex: 0 0 auto; fill: none; stroke: currentColor; }
 .members-empty { padding: 30px 18px; color: #aab2b6; font-size: 13px; text-align: center; }
+.members-success { margin-bottom: 12px; border-color: rgb(98 198 154 / 35%); background: rgb(98 198 154 / 10%); color: #9ce0be; }
+.member-row .icon-button:disabled { cursor: wait; opacity: .55; }
 
 @media (max-width: 860px) {
   .members-layout { grid-template-columns: minmax(0, 1fr) 300px; }

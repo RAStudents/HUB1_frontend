@@ -20,6 +20,17 @@ export interface ExportProgress {
   total_download_bytes?: number;
 }
 
+export interface ExportOptions {
+  class_ids?: number[] | null;
+  splits?: Array<'train' | 'val' | 'test'> | null;
+}
+
+export interface ExportClass {
+  id: number;
+  name: string;
+  count: number;
+}
+
 export const getExportProgressLabel = (progress: ExportProgress): string => {
   if (progress.stage === 'downloading') {
     if (!progress.downloaded_bytes) return 'Подготавливаем архив к скачиванию…';
@@ -49,10 +60,12 @@ export const downloadDatasetExport = async (
   datasetId: number | string,
   datasetName: string,
   onProgress?: (progress: ExportProgress) => void,
+  options?: ExportOptions,
 ): Promise<number> => {
   try {
     const { data: exportResult } = await apiClient.post<ExportResponse>(
       `/datasets/${datasetId}/exports`,
+      options ?? {},
     );
     onProgress?.(exportResult);
 

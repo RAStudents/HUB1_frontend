@@ -109,7 +109,7 @@ export const ListPage = () => {
           onClick={() => navigate('/datasets/create')}
           className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
         >
-          + Создать датасет
+          Создать датасет
         </button>
       </header>
 

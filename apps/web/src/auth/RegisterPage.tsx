@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { AuthField } from './AuthField';
 import { AuthLayout } from './AuthLayout';
+import { getErrorMessage } from './errorMessage';
 
 export const RegisterPage = () => {
   const [displayName, setDisplayName] = useState('');
@@ -21,8 +22,8 @@ export const RegisterPage = () => {
     try {
       await register(email, password, displayName);
       navigate('/');
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Ошибка регистрации');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Ошибка регистрации'));
     } finally {
       setIsSubmitting(false);
     }

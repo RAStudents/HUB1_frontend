@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { apiClient } from '../api/client';
+import { DatasetStatisticsPanel } from './DatasetStatisticsPanel';
 
 interface GalleryItem {
   id: number;
@@ -56,12 +58,33 @@ const GalleryImage: React.FC<{
   modal?: boolean;
 }> = ({ item, selectedClassIds, classNames, opacity, modal = false }) => {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const [viewport, setViewport] = useState({ width: window.innerWidth, height: window.innerHeight });
   const annotations = selectedClassIds.length > 0
     ? item.annotations.filter((annotation) => selectedClassIds.includes(annotation.class_id))
     : item.annotations;
 
+  useEffect(() => {
+    if (!modal) return;
+    const updateViewport = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener('resize', updateViewport);
+    return () => window.removeEventListener('resize', updateViewport);
+  }, [modal]);
+
+  const modalImageSize = modal && dimensions.width > 0 && dimensions.height > 0
+    ? (() => {
+      const aspectRatio = dimensions.width / dimensions.height;
+      const maxWidth = Math.min(viewport.width * 0.7, 420);
+      const maxHeight = Math.min(viewport.height * 0.5, 340);
+      const width = Math.min(dimensions.width, maxWidth, maxHeight * aspectRatio);
+      return { width, height: width / aspectRatio };
+    })()
+    : undefined;
+
   return (
-    <span className={`gallery-image${modal ? ' gallery-image--modal' : ''}`}>
+    <span
+      className={`gallery-image${modal ? ' gallery-image--modal' : ''}`}
+      style={modalImageSize}
+    >
       <img
         alt={modal ? item.filename : ''}
         loading={modal ? 'eager' : 'lazy'}
@@ -169,10 +192,12 @@ export const GalleryPage: React.FC = () => {
   const navigate = useNavigate();
 
   const [items, setItems] = useState<GalleryItem[]>([]);
+  const [itemsDatasetId, setItemsDatasetId] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<{ datasetId: string; reloadKey: number; message: string } | null>(null);
   const [maskOpacity, setMaskOpacity] = useState(0.9);
   const [filter, setFilter] = useState<GalleryFilter>('all');
+  const [allItemsCount, setAllItemsCount] = useState(0);
   const [splitFilter, setSplitFilter] = useState<SplitFilter>('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [objectCountFilter, setObjectCountFilter] = useState<ObjectCountFilter>('all');
@@ -207,17 +232,30 @@ export const GalleryPage: React.FC = () => {
   const [totalItems, setTotalItems] = useState(0);
   const [labeledCount, setLabeledCount] = useState(0);
   const [unlabeledCount, setUnlabeledCount] = useState(0);
-  const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [itemsPage, setItemsPage] = useState(1);
   const [pageInput, setPageInput] = useState('1');
   const [activeItem, setActiveItem] = useState<GalleryItem | null>(null);
   const pendingNavigation = useRef<'next' | 'previous' | null>(null);
+  const classFilterRef = useRef<HTMLDetailsElement>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [canDeleteImages, setCanDeleteImages] = useState(false);
   const [deletingImageId, setDeletingImageId] = useState<number | null>(null);
   const [datasetRole, setDatasetRole] = useState<string | undefined>();
+  const [datasetNameState, setDatasetNameState] = useState({ datasetId, name: '' });
   const [reviewingSampleId, setReviewingSampleId] = useState<number | null>(null);
+
+  useEffect(() => {
+    const closeClassFilterOnOutsideClick = (event: PointerEvent) => {
+      const classFilter = classFilterRef.current;
+      if (classFilter?.open && event.target instanceof Node && !classFilter.contains(event.target)) {
+        classFilter.open = false;
+      }
+    };
+
+    document.addEventListener('pointerdown', closeClassFilterOnOutsideClick);
+    return () => document.removeEventListener('pointerdown', closeClassFilterOnOutsideClick);
+  }, []);
 
   useEffect(() => {
     if (!datasetId) return;
@@ -233,22 +271,37 @@ export const GalleryPage: React.FC = () => {
         if (splitFilter !== 'all') params.set('split', splitFilter);
         if (statusFilter !== 'all') params.set('status', statusFilter);
         if (objectCountFilter !== 'all') params.set('object_count', objectCountFilter);
-        if (filter !== 'all') params.set('labeled', String(filter === 'labeled'));
-        if (search.trim()) params.set('search', search.trim());
         selectedClassIds.forEach((classId) => params.append('class_ids', String(classId)));
 
-        const { data } = await apiClient.get<{
-          total: number;
-          labeled_count: number;
-          unlabeled_count: number;
-          task: string;
-          classes: Array<{ id: number; name: string; count: number }>;
-          items: GalleryItem[];
-        }>(`/datasets/${datasetId}/samples?${params.toString()}`, { signal: controller.signal });
+        const pageParams = new URLSearchParams(params);
+        if (filter !== 'all') pageParams.set('labeled', String(filter === 'labeled'));
+        const countParams = new URLSearchParams(params);
+        countParams.set('page', '1');
+        countParams.set('page_size', '1');
+
+        const countRequest = filter === 'all'
+          ? Promise.resolve(null)
+          : apiClient.get<{ total: number }>(
+              `/datasets/${datasetId}/samples?${countParams.toString()}`,
+              { signal: controller.signal },
+            );
+        const [{ data }, countResponse] = await Promise.all([
+          apiClient.get<{
+            total: number;
+            labeled_count: number;
+            unlabeled_count: number;
+            task: string;
+            classes: Array<{ id: number; name: string; count: number }>;
+            items: GalleryItem[];
+          }>(`/datasets/${datasetId}/samples?${pageParams.toString()}`, { signal: controller.signal }),
+          countRequest,
+        ]);
 
         setItems(data.items);
+        setItemsDatasetId(datasetId);
         setItemsPage(page);
         setTotalItems(data.total);
+        setAllItemsCount(countResponse?.data.total ?? data.total);
         setLabeledCount(data.labeled_count);
         setUnlabeledCount(data.unlabeled_count);
         setDatasetTask(data.task);
@@ -294,7 +347,6 @@ export const GalleryPage: React.FC = () => {
     statusFilter,
     objectCountFilter,
     filter,
-    search,
     selectedClassIds,
     reloadKey,
   ]);
@@ -305,17 +357,24 @@ export const GalleryPage: React.FC = () => {
 
     apiClient.get('/datasets/')
       .then(({ data }) => {
-        const dataset = (data.items || []).find((item: { id: number | string; is_owner?: boolean; my_role?: string }) => String(item.id) === datasetId);
+        const dataset = (data.items || []).find((item: {
+          id: number | string;
+          name?: string;
+          is_owner?: boolean;
+          my_role?: string;
+        }) => String(item.id) === datasetId);
         if (!cancelled) {
           const role = dataset?.is_owner ? 'owner' : dataset?.my_role;
           setDatasetRole(role);
           setCanDeleteImages(role === 'owner');
+          setDatasetNameState({ datasetId, name: dataset?.name || '' });
         }
       })
       .catch(() => {
         if (!cancelled) {
           setCanDeleteImages(false);
           setDatasetRole(undefined);
+          setDatasetNameState({ datasetId, name: '' });
         }
       });
 
@@ -394,7 +453,6 @@ export const GalleryPage: React.FC = () => {
     setObjectCountFilter('all');
     setSelectedClassIds([]);
     setPendingClassIds([]);
-    setSearch('');
     setPage(1);
   };
 
@@ -436,6 +494,7 @@ export const GalleryPage: React.FC = () => {
           ? { ...entry, status: response.data.status }
           : entry
       )));
+      setReloadKey((key) => key + 1);
     } catch (requestError) {
       const detail = axios.isAxiosError(requestError)
         ? requestError.response?.data?.detail
@@ -459,7 +518,7 @@ export const GalleryPage: React.FC = () => {
     rejected: 'На доработку',
   };
 
-  if (loading) {
+  if (loading && (items.length === 0 || itemsDatasetId !== datasetId)) {
     return (
       <section className="gallery-state" aria-live="polite">
         <span className="gallery-state__spinner" />
@@ -483,7 +542,9 @@ export const GalleryPage: React.FC = () => {
       <header className="gallery-heading">
         <div className="gallery-heading__copy">
           <button className="gallery-back" type="button" onClick={() => navigate('/')}>← Датасеты</button>
-          <h1>Галерея <span>#{datasetId}</span></h1>
+          <h1>{datasetNameState.datasetId === datasetId && datasetNameState.name
+            ? datasetNameState.name
+            : `Галерея #${datasetId}`}</h1>
           <p>{totalItems} кадров <span aria-hidden="true">·</span> {taskLabel(task)}</p>
         </div>
         <div className="gallery-heading__actions">
@@ -511,37 +572,27 @@ export const GalleryPage: React.FC = () => {
         </div>
       </header>
 
-      <div className="gallery-toolbar">
-        <div className="gallery-tabs" role="tablist" aria-label="Фильтр по статусу разметки">
-          {([
-            ['all', 'Все', totalItems],
-            ['labeled', 'Размеченные', labeledCount],
-            ['unlabeled', 'Без разметки', unlabeledCount],
-          ] as const).map(([value, label, count]) => (
-            <button
-              aria-selected={filter === value}
-              className={`gallery-tab${filter === value ? ' is-active' : ''}`}
-              key={value}
-              onClick={() => { setPage(1); setFilter(value); }}
-              role="tab"
-              type="button"
-            >
-              {label}<span>{count}</span>
-            </button>
-          ))}
-        </div>
-        <label className="gallery-search">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 4.5 4.5" /></svg>
-          <input
-            aria-label="Поиск по имени файла"
-            onChange={(event) => { setPage(1); setSearch(event.target.value); }}
-            placeholder="Поиск по имени файла"
-            type="search"
-            value={search}
-          />
-        </label>
-      </div>
+      {datasetId && <DatasetStatisticsPanel datasetId={datasetId} reloadKey={reloadKey} />}
 
+      <div className="gallery-toolbar">
+      <div className="gallery-tabs" role="tablist" aria-label="Фильтр по статусу разметки">
+        {([
+          ['all', 'Все', allItemsCount],
+          ['labeled', 'Размеченные', labeledCount],
+          ['unlabeled', 'Без разметки', unlabeledCount],
+        ] as const).map(([value, label, count]) => (
+          <button
+            aria-selected={filter === value}
+            className={`gallery-tab${filter === value ? ' is-active' : ''}`}
+            key={value}
+            onClick={() => { setPage(1); setFilter(value); }}
+            role="tab"
+            type="button"
+          >
+            {label}<span>{count}</span>
+          </button>
+        ))}
+      </div>
       <div className="gallery-filters" aria-label="Дополнительные фильтры">
         <label>
           Сплит
@@ -569,7 +620,7 @@ export const GalleryPage: React.FC = () => {
           </select>
         </label>
         {availableClasses.length > 0 && (
-          <details className="gallery-class-filter">
+          <details className="gallery-class-filter" ref={classFilterRef}>
             <summary>Классы{pendingClassIds.length > 0 ? `: ${pendingClassIds.length}` : ''}</summary>
             <div className="gallery-class-filter__options">
               <div className="gallery-class-filter__list">
@@ -595,6 +646,7 @@ export const GalleryPage: React.FC = () => {
                 onClick={() => {
                   setPage(1);
                   setSelectedClassIds(pendingClassIds);
+                  if (classFilterRef.current) classFilterRef.current.open = false;
                 }}
                 type="button"
               >
@@ -603,29 +655,18 @@ export const GalleryPage: React.FC = () => {
             </div>
           </details>
         )}
-        {pendingClassIds.map((classId) => (
-          <button
-            className="gallery-filter-reset"
-            key={classId}
-            onClick={() => {
-              setPage(1);
-              setPendingClassIds((current) => current.filter((id) => id !== classId));
-            }}
-            type="button"
-          >
-            {classCatalog[classId] || `Класс ${classId}`} ×
-          </button>
-        ))}
         <button className="gallery-filter-reset" onClick={clearFilters} type="button">Сбросить</button>
       </div>
-      {visibleItems.length === 0 ? (
-        <div className="gallery-empty">
-          <h2>{totalItems ? 'Ничего не найдено' : 'Галерея пока пуста'}</h2>
-          <p>{totalItems ? 'Измените запрос или выберите другой статус.' : 'В этом датасете пока нет изображений для показа.'}</p>
-        </div>
-      ) : (
-        <div className="gallery-grid">
-          {visibleItems.map((item) => {
+      </div>
+      <div className={`gallery-results${loading ? ' is-loading' : ''}`} aria-busy={loading}>
+        {visibleItems.length === 0 ? (
+          <div className="gallery-empty">
+            <h2>{totalItems ? 'Ничего не найдено' : 'Галерея пока пуста'}</h2>
+            <p>{totalItems ? 'Измените запрос или выберите другой статус.' : 'В этом датасете пока нет изображений для показа.'}</p>
+          </div>
+        ) : (
+          <div className="gallery-grid">
+            {visibleItems.map((item) => {
             const isLabeled = item.objects_count > 0;
             return (
               <article className="gallery-card" key={item.id}>
@@ -708,9 +749,10 @@ export const GalleryPage: React.FC = () => {
                 )}
               </article>
             );
-          })}
-        </div>
-      )}
+            })}
+          </div>
+        )}
+      </div>
 
       {totalItems > 0 && (
         <footer className="gallery-pagination">
@@ -739,49 +781,93 @@ export const GalleryPage: React.FC = () => {
       )}
 
       {activeItem && (
-        <div className="gallery-modal" onClick={() => setActiveItem(null)} role="presentation">
-          <section aria-label={`Просмотр кадра: ${activeItem.filename}`} aria-modal="true" className="gallery-modal__panel" onClick={(event) => event.stopPropagation()} role="dialog">
-            <header className="gallery-modal__header">
-              <div>
-                <h2>{activeItem.filename}</h2>
-                <p>{getVisibleObjectCount(activeItem)} объектов <span aria-hidden="true">·</span> {taskLabel(activeItem.task)}</p>
+        createPortal(
+          <div className="gallery-modal" onClick={() => setActiveItem(null)} role="presentation">
+            <section aria-label={`Просмотр кадра: ${activeItem.filename}`} aria-modal="true" className="gallery-modal__panel" onClick={(event) => event.stopPropagation()} role="dialog">
+              <header className="gallery-modal__header">
+                <div>
+                  <h2>{activeItem.filename}</h2>
+                  <p>{getVisibleObjectCount(activeItem)} объектов <span aria-hidden="true">·</span> {taskLabel(activeItem.task)}</p>
+                </div>
+                <span className="gallery-modal__position">
+                  {(itemsPage - 1) * PAGE_SIZE + activeIndex + 1} / {totalItems}
+                </span>
+                <button aria-label="Закрыть просмотр" className="gallery-modal__close" onClick={() => setActiveItem(null)} type="button">×</button>
+              </header>
+              <div className="gallery-modal__image">
+                <GalleryImage
+                  classNames={classCatalog}
+                  item={activeItem}
+                  key={activeItem.id}
+                  modal
+                  opacity={maskOpacity}
+                  selectedClassIds={selectedClassIds}
+                />
+                <button
+                  aria-label="Предыдущий кадр"
+                  className="gallery-modal__nav gallery-modal__nav--previous"
+                  disabled={activeIndex <= 0 && page <= 1}
+                  onClick={showPreviousItem}
+                  type="button"
+                >
+                  ‹
+                </button>
+                <button
+                  aria-label="Следующий кадр"
+                  className="gallery-modal__nav gallery-modal__nav--next"
+                  disabled={activeIndex < 0 || (activeIndex >= items.length - 1 && page >= pageCount)}
+                  onClick={showNextItem}
+                  type="button"
+                >
+                  ›
+                </button>
               </div>
-              <span className="gallery-modal__position">
-                {(itemsPage - 1) * PAGE_SIZE + activeIndex + 1} / {totalItems}
-              </span>
-              <button aria-label="Закрыть просмотр" className="gallery-modal__close" onClick={() => setActiveItem(null)} type="button">×</button>
-            </header>
-            <div className="gallery-modal__image">
-              <GalleryImage
-                classNames={classCatalog}
-                item={activeItem}
-                key={activeItem.id}
-                modal
-                opacity={maskOpacity}
-                selectedClassIds={selectedClassIds}
-              />
-              <button
-                aria-label="Предыдущий кадр"
-                className="gallery-modal__nav gallery-modal__nav--previous"
-                disabled={activeIndex <= 0 && page <= 1}
-                onClick={showPreviousItem}
-                type="button"
-              >
-                ‹
-              </button>
-              <button
-                aria-label="Следующий кадр"
-                className="gallery-modal__nav gallery-modal__nav--next"
-                disabled={activeIndex < 0 || (activeIndex >= items.length - 1 && page >= pageCount)}
-                onClick={showNextItem}
-                type="button"
-              >
-                ›
-              </button>
-            </div>
-            <footer className="gallery-modal__footer">Используйте клавиши ← и → для перехода между кадрами · Esc — закрыть</footer>
-          </section>
-        </div>
+              <footer className="gallery-modal__footer">
+                <span>Используйте клавиши ← и → для перехода между кадрами · Esc — закрыть</span>
+                {activeItem.sample_id && (
+                  <button
+                    className="gallery-button gallery-button--primary"
+                    onClick={() => {
+                      const editorSample = {
+                        ...activeItem,
+                        dataset_id: Number(datasetId),
+                        split: activeItem.split || 'train',
+                        status: activeItem.status || 'unlabeled',
+                      };
+                      navigate(`/datasets/${datasetId}/annotate/${activeItem.sample_id}?split=${editorSample.split}&page=${itemsPage}`, {
+                        state: {
+                          sample: editorSample,
+                          items: items.map((item) => ({
+                            ...item,
+                            dataset_id: Number(datasetId),
+                            split: item.split || 'train',
+                            status: item.status || 'unlabeled',
+                          })),
+                          datasetName: datasetNameState.name,
+                          classNames: classCatalog,
+                          datasetRole,
+                          page: itemsPage,
+                          totalSamples: totalItems,
+                          labeledSamples: labeledCount,
+                          filters: {
+                            status: statusFilter,
+                            objectCount: objectCountFilter,
+                            labeled: filter === 'all' ? undefined : filter === 'labeled',
+                            classIds: selectedClassIds,
+                          },
+                        },
+                      });
+                    }}
+                    type="button"
+                  >
+                    Открыть разметку
+                  </button>
+                )}
+              </footer>
+            </section>
+          </div>,
+          document.body,
+        )
       )}
     </section>
   );

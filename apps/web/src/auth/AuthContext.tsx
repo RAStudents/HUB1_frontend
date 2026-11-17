@@ -6,7 +6,7 @@ interface AuthContextValue {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, displayName: string) => Promise<void>;
-  loginWithYandex: (code: string) => Promise<void>;
+  loginWithYandex: (code: string, state: string) => Promise<void>;
   updateProfile: (displayName: string) => Promise<User>;
   updateAvatar: (file: File) => Promise<User>;
   removeAvatar: () => Promise<User>;
@@ -105,8 +105,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     saveAuthResponse(response.data);
   };
 
-  const loginWithYandex = async (code: string) => {
-    const response = await apiClient.get<AuthResponse>('/auth/yandex/callback', { params: { code } });
+  const loginWithYandex = async (code: string, state: string) => {
+    const response = await apiClient.get<AuthResponse>('/auth/yandex/callback', { params: { code, state } });
     saveAuthResponse(response.data);
   };
 

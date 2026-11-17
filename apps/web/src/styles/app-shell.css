@@ -60,25 +60,19 @@ button { color: inherit; }
 }
 
 .app-brand__logo {
-  position: relative;
   display: block;
   width: 32px;
   height: 32px;
   flex: 0 0 32px;
   overflow: hidden;
-  border-radius: 50%;
-  background: #000;
+  border-radius: 6px;
 }
 
 .app-brand__logo img {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 46px;
-  height: 46px;
-  max-width: none;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
 }
 
 .app-navigation {
@@ -100,6 +94,13 @@ button { color: inherit; }
 .app-navigation__link:hover,
 .app-navigation__link--active {
   border-bottom-color: var(--app-accent);
+}
+
+.app-navigation__link:hover {
+  color: #F85025;
+}
+
+.app-navigation__link--active {
   color: #f0f1f2;
 }
 
@@ -122,8 +123,8 @@ button { color: inherit; }
   transition: color 120ms ease;
 }
 
-.app-account__email:hover { color: #fff; }
-.app-account__email:focus-visible { border-radius: 3px; outline: 2px solid #ff9a63; outline-offset: 4px; }
+.app-account__email:hover { color: #F85025; }
+.app-account__email:focus-visible { border-radius: 3px; outline: 2px solid #f06a2b; outline-offset: 4px; }
 
 .app-account__avatar {
   display: grid;
@@ -136,12 +137,16 @@ button { color: inherit; }
   text-decoration: none;
 }
 
-.app-account__avatar:focus-visible { border-radius: 50%; outline: 2px solid #ff9a63; outline-offset: 4px; }
+.app-account__avatar:focus-visible { border-radius: 50%; outline: 2px solid #f06a2b; outline-offset: 4px; }
 
 .app-account__avatar-image {
-  width: 100%;
-  height: 100%;
-  border: 2px solid var(--avatar-border-color, var(--app-accent));
+  display: block;
+  width: 36px;
+  height: 36px;
+  box-sizing: border-box;
+  flex: 0 0 36px;
+  overflow: hidden;
+  border: 2.0px solid var(--app-accent);
   border-radius: 50%;
   background: var(--app-surface);
   color: var(--app-text);
@@ -151,12 +156,12 @@ button { color: inherit; }
 }
 
 .app-account__avatar:hover .app-account__avatar-image {
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--avatar-border-color, var(--app-accent)) 22%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, #F85025 22%, transparent);
 }
 
 .app-account__avatar-image img { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
 .app-account__avatar-image > span { display: grid; width: 100%; height: 100%; place-items: center; }
-.app-account__avatar-image:focus-visible { outline: 2px solid var(--avatar-border-color, #ff9a63); outline-offset: 3px; }
+.app-account__avatar-image:focus-visible { outline: 2px solid #ff9a63; outline-offset: 3px; }
 
 .app-account__divider {
   width: 1px;
@@ -176,7 +181,7 @@ button { color: inherit; }
   cursor: pointer;
 }
 
-.app-logout:hover { color: #fff; }
+.app-logout:hover { color: #F85025; }
 
 .app-logout svg,
 .button svg {
@@ -252,7 +257,7 @@ button { color: inherit; }
   color: #fff;
 }
 
-.button--primary:hover { background: #ff7b3d; }
+.button--primary:hover { background: #F85025; }
 .button--primary svg { width: 17px; height: 17px; }
 
 .page-back {
@@ -265,7 +270,7 @@ button { color: inherit; }
   text-decoration: none;
 }
 
-.page-back:hover { color: var(--app-text); }
+.page-back:hover { color: #F85025; }
 
 .page-back svg {
   width: 16px;

@@ -62,7 +62,7 @@ export interface DatasetMember {
 }
 
 export interface DatasetInvitation {
-  dataset_id: number;
+  dataset_id: string;
   dataset_name: string;
   role: Exclude<Role, 'owner'>;
   inviter_name: string;
@@ -73,7 +73,7 @@ export interface Notification {
   type: string;
   title: string;
   message: string;
-  dataset_id: number | null;
+  dataset_id: string | null;
   is_read: boolean;
   created_at: string;
 }

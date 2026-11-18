@@ -16,7 +16,7 @@ type TaskOption = {
 
 interface ImportJob {
   import_id: number;
-  dataset_id: number | null;
+  dataset_id: string | null;
   status: 'queued' | 'processing' | 'completed' | 'failed';
   stage: 'queued' | 'processing' | 'extracting' | 'normalizing' | 'copying'
     | 'discovering' | 'importing' | 'finalizing' | 'building_gallery' | 'completed' | 'failed';

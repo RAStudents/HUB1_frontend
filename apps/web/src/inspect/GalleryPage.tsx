@@ -3,7 +3,9 @@ import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { apiClient } from '../api/client';
-import { DatasetStatisticsPanel } from './DatasetStatisticsPanel';
+import { EditorIcon } from './EditorIcon';
+import { downloadDatasetExport, type ExportProgress } from '../api/exports';
+import { getApiErrorMessage } from '../api/errorMessage';
 
 interface GalleryItem {
   id: number;
@@ -190,6 +192,7 @@ const GalleryImage: React.FC<{
 export const GalleryPage: React.FC = () => {
   const { datasetId } = useParams<{ datasetId: string }>();
   const navigate = useNavigate();
+  useEffect(() => { window.scrollTo(0, 0); }, [datasetId]);
 
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [itemsDatasetId, setItemsDatasetId] = useState<string | undefined>();
@@ -239,6 +242,11 @@ export const GalleryPage: React.FC = () => {
   const pendingNavigation = useRef<'next' | 'previous' | null>(null);
   const classFilterRef = useRef<HTMLDetailsElement>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [datasetPrivate, setDatasetPrivate] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState<ExportProgress | null>(null);
+  const [exportError, setExportError] = useState('');
   const [canDeleteImages, setCanDeleteImages] = useState(false);
   const [deletingImageId, setDeletingImageId] = useState<number | null>(null);
   const [datasetRole, setDatasetRole] = useState<string | undefined>();
@@ -362,10 +370,12 @@ export const GalleryPage: React.FC = () => {
           name?: string;
           is_owner?: boolean;
           my_role?: string;
+          is_private?: boolean;
         }) => String(item.id) === datasetId);
         if (!cancelled) {
           const role = dataset?.is_owner ? 'owner' : dataset?.my_role;
           setDatasetRole(role);
+          setDatasetPrivate(dataset?.is_private !== false);
           setCanDeleteImages(role === 'owner');
           setDatasetNameState({ datasetId, name: dataset?.name || '' });
         }
@@ -545,26 +555,26 @@ export const GalleryPage: React.FC = () => {
           <h1>{datasetNameState.datasetId === datasetId && datasetNameState.name
             ? datasetNameState.name
             : `Галерея #${datasetId}`}</h1>
-          <p>{totalItems} кадров <span aria-hidden="true">·</span> {taskLabel(task)}</p>
+          <div className="gallery-dataset-badges"><span>{taskLabel(task)}</span><span>{allItemsCount} кадров</span><span className={datasetRole === 'owner' ? 'is-owner' : ''}>{datasetRole === 'owner' ? 'Владелец' : datasetRole === 'labeler' ? 'Разметчик' : 'Наблюдатель'}</span><span>{datasetPrivate ? 'Приватный' : 'Публичный'}</span></div>
         </div>
         <div className="gallery-heading__actions">
-          <label className="gallery-opacity">
-            <span>Разметка <strong>{Math.round(maskOpacity * 100)}%</strong></span>
-            <input
-              aria-label="Прозрачность маски"
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={maskOpacity}
-              style={{ '--range-progress': `${maskOpacity * 100}%` } as React.CSSProperties}
-              onChange={(event) => setMaskOpacity(Number(event.target.value))}
-            />
-          </label>
+          {canDeleteImages && <button className="gallery-button" type="button" onClick={() => navigate(`/datasets/${datasetId}/members`)}><EditorIcon name="users" />Участники</button>}
+          <button className="gallery-button" type="button" onClick={() => navigate(`/datasets/${datasetId}/statistics`)}><EditorIcon name="chart" />Статистика</button>
+          {canDeleteImages && <button className="gallery-button" type="button" disabled={exporting} onClick={async () => {
+            if (!datasetId) return;
+            setExporting(true); setExportError(''); setExportProgress(null);
+            try { await downloadDatasetExport(datasetId, datasetNameState.name || 'dataset', setExportProgress); }
+            catch (e) { setExportError(getApiErrorMessage(e, 'Не удалось экспортировать датасет.')); }
+            finally { setExporting(false); }
+          }}><EditorIcon name="download" />{exporting ? `Экспорт ${exportProgress?.progress ?? 0}%` : 'Экспорт'}</button>}
+          {canDeleteImages && <button className="gallery-button" type="button" onClick={() => navigate(`/datasets/${datasetId}/upload`)}><EditorIcon name="upload" />Загрузить кадры</button>}
           <button
             className="gallery-button gallery-button--primary"
             disabled={!firstItem}
-            onClick={() => firstItem && setActiveItem(firstItem)}
+            onClick={() => firstItem && navigate(`/datasets/${datasetId}/annotate/${firstItem.sample_id ?? firstItem.id}?split=${firstItem.split || 'train'}&page=${itemsPage}`, { state: {
+              sample: { ...firstItem, dataset_id: datasetId }, items: items.map(item => ({ ...item, dataset_id: datasetId })), datasetName: datasetNameState.name, classNames: classCatalog, datasetRole, page: itemsPage, totalSamples: totalItems, labeledSamples: labeledCount,
+              filters: { status: statusFilter, objectCount: objectCountFilter, labeled: filter === 'all' ? undefined : filter === 'labeled', classIds: selectedClassIds },
+            } })}
             type="button"
           >
             Открыть разметку
@@ -572,7 +582,7 @@ export const GalleryPage: React.FC = () => {
         </div>
       </header>
 
-      {datasetId && <DatasetStatisticsPanel datasetId={datasetId} reloadKey={reloadKey} />}
+      {exportError && <p className="form-alert" role="alert">{exportError}</p>}
 
       <div className="gallery-toolbar">
       <div className="gallery-tabs" role="tablist" aria-label="Фильтр по статусу разметки">
@@ -582,18 +592,21 @@ export const GalleryPage: React.FC = () => {
           ['unlabeled', 'Без разметки', unlabeledCount],
         ] as const).map(([value, label, count]) => (
           <button
-            aria-selected={filter === value}
-            className={`gallery-tab${filter === value ? ' is-active' : ''}`}
+            aria-selected={statusFilter === 'all' && filter === value}
+            className={`gallery-tab${statusFilter === 'all' && filter === value ? ' is-active' : ''}`}
             key={value}
-            onClick={() => { setPage(1); setFilter(value); }}
+            onClick={() => { setPage(1); setFilter(value); setStatusFilter('all'); }}
             role="tab"
             type="button"
           >
             {label}<span>{count}</span>
           </button>
         ))}
+        {([['in_review', 'На проверке'], ['accepted', 'Приняты']] as const).map(([value, label]) => <button key={value} className={`gallery-tab${statusFilter === value ? ' is-active' : ''}`} role="tab" aria-selected={statusFilter === value} type="button" onClick={() => { setPage(1); setFilter('all'); setStatusFilter(value); }}>{label}</button>)}
       </div>
-      <div className="gallery-filters" aria-label="Дополнительные фильтры">
+      <div className="gallery-split-tabs" role="group" aria-label="Выборка">{(['all', 'train', 'val', 'test'] as const).map(value => <button key={value} type="button" aria-pressed={splitFilter === value} onClick={() => { setPage(1); setSplitFilter(value); }}>{value === 'all' ? 'Все выборки' : value === 'train' ? 'Train' : value === 'val' ? 'Val' : 'Test'}</button>)}</div>
+      <button className="gallery-button gallery-filter-toggle" type="button" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(value => !value)}><EditorIcon name="filter" />Фильтры</button>
+      <div className="gallery-filters" aria-label="Дополнительные фильтры" hidden={!filtersOpen}>
         <label>
           Сплит
           <select value={splitFilter} onChange={(event) => { setPage(1); setSplitFilter(event.target.value as SplitFilter); }}>
@@ -655,6 +668,19 @@ export const GalleryPage: React.FC = () => {
             </div>
           </details>
         )}
+          <label className="gallery-opacity">
+            <span>Разметка <strong>{Math.round(maskOpacity * 100)}%</strong></span>
+            <input
+              aria-label="Прозрачность маски"
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={maskOpacity}
+              style={{ '--range-progress': `${maskOpacity * 100}%` } as React.CSSProperties}
+              onChange={(event) => setMaskOpacity(Number(event.target.value))}
+            />
+          </label>
         <button className="gallery-filter-reset" onClick={clearFilters} type="button">Сбросить</button>
       </div>
       </div>
@@ -686,7 +712,7 @@ export const GalleryPage: React.FC = () => {
                 <span className="gallery-card__details">
                   <span className="gallery-card__filename" title={item.filename}>{item.filename}</span>
                   <span className="gallery-card__meta">
-                    <span className={`gallery-status${isLabeled ? ' gallery-status--labeled' : ''}`}>
+                    <span className={`gallery-status gallery-status--${item.status || 'unlabeled'}${isLabeled ? ' gallery-status--labeled' : ''}`}>
                       <i aria-hidden="true" />{reviewStatusLabels[item.status || ''] || (isLabeled ? 'Размечено' : 'Без разметки')}
                     </span>
                     <span className="gallery-card__task">{taskLabel(item.task)}</span>
@@ -830,7 +856,7 @@ export const GalleryPage: React.FC = () => {
                     onClick={() => {
                       const editorSample = {
                         ...activeItem,
-                        dataset_id: Number(datasetId),
+                        dataset_id: datasetId,
                         split: activeItem.split || 'train',
                         status: activeItem.status || 'unlabeled',
                       };
@@ -839,7 +865,7 @@ export const GalleryPage: React.FC = () => {
                           sample: editorSample,
                           items: items.map((item) => ({
                             ...item,
-                            dataset_id: Number(datasetId),
+                            dataset_id: datasetId,
                             split: item.split || 'train',
                             status: item.status || 'unlabeled',
                           })),

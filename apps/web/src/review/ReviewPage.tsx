@@ -21,7 +21,7 @@ interface ReviewAnnotation {
 interface ReviewSample {
   id: number;
   sample_id?: number | null;
-  dataset_id: number;
+  dataset_id: string;
   stem: string;
   split: string;
   status: string;
@@ -255,7 +255,7 @@ export const ReviewPage = () => {
   const selectedItem = visibleItems.find(({ key }) => key === activeKey) || visibleItems[0] || null;
   const selectedIndex = selectedItem ? visibleItems.findIndex(({ key }) => key === selectedItem.key) : -1;
   const datasets = useMemo(() => {
-    const unique = new Map<number, string>();
+    const unique = new Map<string, string>();
     items.forEach(({ sample, datasetName }) => unique.set(sample.dataset_id, datasetName));
     return [...unique.entries()].map(([id, name]) => ({ id, name }));
   }, [items]);

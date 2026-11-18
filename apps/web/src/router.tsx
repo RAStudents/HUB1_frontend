@@ -1,4 +1,5 @@
-import { createBrowserRouter, Navigate, Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { isPublicDatasetId } from './api/datasetId';
+import { createBrowserRouter, Navigate, Outlet, Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { useAuth } from './auth/AuthContext';
 
@@ -7,6 +8,8 @@ import { RegisterPage } from './auth/RegisterPage';
 import { YandexCallbackPage } from './auth/YandexCallbackPage';
 import { DashboardPage } from './datasets/DashboardPage';
 import { CreatePage } from './datasets/CreatePage';
+import { UploadFramesPage } from './datasets/UploadFramesPage';
+import { DatasetStatisticsPage } from './datasets/DatasetStatisticsPage';
 import { MembersPage } from './datasets/MembersPage';
 import { GalleryPage } from './inspect/GalleryPage'; // Импортируем страницу галереи
 import { AnnotationEditorPage } from './inspect/AnnotationEditorPage';
@@ -45,7 +48,7 @@ const Layout = () => {
 
     const loadPendingInvitationCount = async () => {
       try {
-        const { data } = await apiClient.get<Array<{ dataset_id: number }>>('/invitations');
+        const { data } = await apiClient.get<Array<{ dataset_id: string }>>('/invitations');
         if (active) setPendingInvitationCount(data.length);
       } catch (error) {
         console.error('Не удалось загрузить счётчик приглашений:', error);
@@ -180,6 +183,11 @@ const GuestRoute = ({ children }: { children: ReactNode }) => {
   return <>{children}</>;
 };
 
+const DatasetRoute = () => {
+  const { datasetId } = useParams();
+  return isPublicDatasetId(datasetId) ? <Outlet /> : <Navigate to="/" replace />;
+};
+
 // ============ ROUTER ============
 export const router = createBrowserRouter([
   { path: '/login', element: <GuestRoute><LoginPage /></GuestRoute> },
@@ -194,9 +202,13 @@ export const router = createBrowserRouter([
       { path: 'notifications', element: <NotificationsPage /> },
       { path: 'review', element: <ReviewPage /> },
       { path: 'datasets/create', element: <CreatePage /> },
-      { path: 'datasets/:datasetId/members', element: <MembersPage /> },
-      { path: 'datasets/:datasetId/gallery', element: <GalleryPage /> }, // Динамический роут для галереи конкретного датасета
-      { path: 'datasets/:datasetId/annotate/:sampleId', element: <AnnotationEditorPage /> },
+      { path: 'datasets/:datasetId', element: <DatasetRoute />, children: [
+        { path: 'upload', element: <UploadFramesPage /> },
+        { path: 'statistics', element: <DatasetStatisticsPage /> },
+        { path: 'members', element: <MembersPage /> },
+        { path: 'gallery', element: <GalleryPage /> },
+        { path: 'annotate/:sampleId', element: <AnnotationEditorPage /> },
+      ] },
     ],
   },
 ]);

@@ -61,15 +61,15 @@
   bottom: -1px;
   left: 0;
   height: 3px;
-  background: var(--app-red);
+  background: var(--app-accent);
   content: "";
 }
 
-.dataset-tabs__tab.is-active span { background: #795055; }
+.dataset-tabs__tab.is-active span { background: var(--app-accent-soft); color: #ffad7d; }
 
 .dataset-tabs__tab:focus-visible,
 .dataset-create-tile:focus-visible {
-  outline: 2px solid #f07676;
+  outline: 2px solid #ff9a63;
   outline-offset: 2px;
 }
 
@@ -92,12 +92,17 @@
 }
 
 .dataset-card__preview {
+  position: relative;
   display: block;
   width: 100%;
+  overflow: hidden;
   aspect-ratio: 1.91 / 1;
-  object-fit: cover;
   background: #d9e3e8;
 }
+
+.dataset-card__preview-image { display: block; width: 100%; height: 100%; object-fit: cover; }
+.dataset-card__preview-annotations { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.dataset-card__preview--message { display: grid; place-items: center; color: #777f84; font-size: 11px; }
 
 .dataset-card__content {
   display: flex;
@@ -202,7 +207,7 @@
   font-size: 11px;
 }
 
-.role-pill--owner { background: #65484b; color: #ff9790; }
+.role-pill--owner { background: #70472f; color: #ffb07a; }
 .role-pill--labeler { background: #405b78; color: #a7caff; }
 .role-pill--observer { color: #d7dcdf; }
 
@@ -225,7 +230,7 @@
   font-size: 11px;
 }
 
-.button--quiet:hover { border-color: #899198; background: rgb(255 255 255 / 4%); }
+.button--quiet:hover { border-color: #F85025; background: #F85025; color: #fff; }
 .button--quiet svg { width: 15px; height: 15px; }
 
 .dataset-card__open {
@@ -238,7 +243,47 @@
   font-size: 11px;
 }
 
-.dataset-card__open--labeler { border-color: var(--app-red); color: #ff8984; }
+.dataset-card__open--labeler { border-color: var(--app-accent); color: #ff9a63; }
+
+.dataset-card__delete {
+  border-color: #805452;
+  color: #ffaaa0;
+}
+
+.dataset-card__delete:hover:not(:disabled) {
+  border-color: #F85025;
+  background: #F85025;
+  color: #fff;
+}
+
+.dataset-card__delete:disabled { cursor: wait; opacity: 0.6; }
+
+.dataset-export-progress {
+  margin-top: 10px;
+  color: #c9ced1;
+  font-size: 11px;
+}
+
+.dataset-export-progress__label {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.dataset-export-progress progress {
+  display: block;
+  width: 100%;
+  height: 7px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  background: #41494e;
+  accent-color: var(--app-accent);
+}
+
+.dataset-export-progress--light { color: #4b5563; }
+.dataset-export-progress--light progress { background: #e5e7eb; }
 
 .dataset-create-tile {
   display: flex;
@@ -256,7 +301,7 @@
   cursor: pointer;
 }
 
-.dataset-create-tile:hover { border-color: #e26968; background: rgb(255 255 255 / 2%); }
+.dataset-create-tile:hover { border-color: #F85025; background: rgb(248 80 37 / 8%); }
 
 .dataset-create-tile__plus {
   display: grid;
@@ -264,10 +309,121 @@
   height: 42px;
   place-items: center;
   border-radius: 50%;
-  background: #65484b;
-  color: #ff8580;
-  font-size: 29px;
-  font-weight: 300;
+  background: #70472f;
+  color: #ff9a63;
+}
+
+.dataset-create-tile__plus svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.8;
+}
+
+.dataset-export-dialog {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  overflow: auto;
+  padding: 24px;
+  place-items: center;
+  background: rgb(13 16 18 / 76%);
+  backdrop-filter: blur(5px);
+}
+
+.dataset-export-dialog__panel {
+  width: min(100%, 520px);
+  max-height: min(760px, 92vh);
+  overflow: hidden;
+  border: 1px solid #626c72;
+  border-radius: 12px;
+  background: linear-gradient(155deg, #485157, #3e454a 70%);
+  box-shadow: 0 24px 80px rgb(0 0 0 / 48%), inset 0 1px 0 rgb(255 255 255 / 5%);
+  animation: dataset-export-dialog-enter 180ms ease-out both;
+}
+
+@keyframes dataset-export-dialog-enter {
+  from { opacity: 0; transform: translateY(8px) scale(.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.dataset-export-dialog__header,
+.dataset-export-dialog__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px 22px;
+}
+
+.dataset-export-dialog__header { border-bottom: 1px solid rgb(255 255 255 / 8%); }
+.dataset-export-dialog__header h2 { margin: 0; color: var(--app-text); font-size: 18px; font-weight: 650; }
+.dataset-export-dialog__header p { margin: 6px 0 0; color: #b7c0c5; font-size: 12px; }
+.dataset-export-dialog__close { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #b7c0c5; font-size: 23px; cursor: pointer; transition: background 130ms ease, color 130ms ease, border-color 130ms ease; }
+.dataset-export-dialog__close:hover { background: #F85025; color: #fff; }
+
+.dataset-export-dialog__body {
+  display: grid;
+  max-height: calc(92vh - 150px);
+  gap: 14px;
+  overflow: auto;
+  padding: 18px 22px;
+}
+
+.dataset-export-dialog__group {
+  display: grid;
+  min-width: 0;
+  box-sizing: border-box;
+  gap: 8px;
+  margin: 0;
+  padding: 13px 14px;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 8px;
+  background: rgb(27 32 35 / 18%);
+  color: var(--app-text);
+}
+
+.dataset-export-dialog__group h3 { margin: 0 0 2px; color: #f0f2f3; font-size: 13px; font-weight: 650; }
+.dataset-export-dialog__group label { display: flex; min-width: 0; align-items: center; gap: 9px; color: #d7dcde; font-size: 12px; cursor: pointer; }
+.dataset-export-dialog__group label:hover { color: #F85025; }
+.dataset-export-dialog__group input { width: 15px; height: 15px; flex: 0 0 auto; margin: 0; accent-color: var(--app-accent); cursor: pointer; }
+.dataset-export-dialog__group > p { margin: 0; color: var(--app-muted); font-size: 12px; }
+.dataset-export-dialog__group:first-child { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.dataset-export-dialog__group:first-child h3 { grid-column: 1 / -1; }
+.dataset-export-dialog__group:first-child label { min-height: 36px; padding: 0 10px; border: 1px solid #59636a; border-radius: 6px; background: rgb(255 255 255 / 2%); }
+.dataset-export-dialog__group:first-child label:hover { border-color: #F85025; background: rgb(248 80 37 / 8%); }
+.dataset-export-dialog__select-all { justify-self: start; padding: 3px 0; border: 0; background: transparent; color: #ff9a63; font-size: 12px; font-weight: 600; cursor: pointer; }
+.dataset-export-dialog__select-all:hover { color: #F85025; }
+.dataset-export-dialog__class-list { display: grid; max-height: 220px; gap: 3px; overflow: auto; padding: 2px 5px 2px 0; scrollbar-color: #687278 #30373c; scrollbar-width: thin; }
+.dataset-export-dialog__class-list::-webkit-scrollbar { width: 8px; }
+.dataset-export-dialog__class-list::-webkit-scrollbar-track { border-radius: 999px; background: #30373c; }
+.dataset-export-dialog__class-list::-webkit-scrollbar-thumb { border: 2px solid #30373c; border-radius: 999px; background: #687278; }
+.dataset-export-dialog__class-list::-webkit-scrollbar-thumb:hover { background: #F85025; }
+.dataset-export-dialog__class-list label { min-height: 32px; padding: 0 8px; border-radius: 5px; }
+.dataset-export-dialog__class-list label:hover { background: rgb(248 80 37 / 8%); }
+.dataset-export-dialog__class-list label span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dataset-export-dialog__class-list label small { margin-left: auto; color: #aeb8bd; font-size: 11px; font-variant-numeric: tabular-nums; }
+.dataset-export-dialog__error { margin: 0; color: #ffaaa5; font-size: 12px; }
+.dataset-export-dialog__footer { justify-content: flex-end; border-top: 1px solid rgb(255 255 255 / 8%); }
+.dataset-export-dialog__footer .button { min-width: 112px; }
+.dataset-export-dialog__footer .button--quiet { border-color: #626d73; }
+.dataset-export-dialog__footer .button--quiet:hover { border-color: #F85025; background: #F85025; color: #fff; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dataset-export-dialog__panel { animation: none; }
+}
+
+@media (max-width: 520px) {
+  .dataset-export-dialog { padding: 12px; }
+  .dataset-export-dialog__header,
+  .dataset-export-dialog__footer { padding: 15px 16px; }
+  .dataset-export-dialog__body { padding: 14px 16px; }
+  .dataset-export-dialog__group { padding: 11px; }
+  .dataset-export-dialog__footer .button { min-width: 0; flex: 1; padding: 0 10px; }
 }
 
 .dataset-create-tile strong { font-size: 13px; }

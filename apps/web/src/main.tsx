@@ -9,6 +9,12 @@ import './styles/app-shell.css';
 import './styles/dashboard.css';
 import './styles/dataset-form.css';
 import './styles/members.css';
+import './styles/gallery.css';
+import './styles/profile.css';
+import './styles/notifications.css';
+import './styles/review.css';
+import './styles/annotation-editor.css';
+import './styles/dataset-pages.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>

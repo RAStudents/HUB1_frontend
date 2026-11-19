@@ -6,7 +6,10 @@ interface AuthContextValue {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, displayName: string) => Promise<void>;
-  loginWithYandex: (code: string) => Promise<void>;
+  loginWithYandex: (code: string, state: string) => Promise<void>;
+  updateProfile: (displayName: string) => Promise<User>;
+  updateAvatar: (file: File) => Promise<User>;
+  removeAvatar: () => Promise<User>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -33,7 +36,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           try {
             const parsedUser = JSON.parse(cachedUser) as User;
             if (parsedUser.id === userId) {
-              setUser(parsedUser);
+              const nextUser = {
+                ...parsedUser,
+                email: data.email || parsedUser.email,
+                display_name: data.name || parsedUser.display_name,
+                avatar_url: data.avatar_url,
+              };
+              localStorage.setItem('auth_user', JSON.stringify(nextUser));
+              setUser(nextUser);
               return;
             }
           } catch {
@@ -41,7 +51,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         }
 
-        setUser({ id: userId, email: '', display_name: '' });
+        const nextUser = {
+          id: userId,
+          email: data.email || '',
+          display_name: data.name || '',
+          avatar_url: data.avatar_url,
+        };
+        localStorage.setItem('auth_user', JSON.stringify(nextUser));
+        setUser(nextUser);
       })
       .catch(() => {
         localStorage.removeItem('access_token');
@@ -59,6 +76,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem('access_token', response.access_token);
     localStorage.setItem('auth_user', JSON.stringify(nextUser));
     setUser(nextUser);
+    void apiClient.get<AuthMeResponse>('/auth/me')
+      .then(({ data }) => {
+        const updatedUser = {
+          ...nextUser,
+          avatar_url: data.avatar_url,
+          display_name: data.name || nextUser.display_name,
+        };
+        localStorage.setItem('auth_user', JSON.stringify(updatedUser));
+        setUser(updatedUser);
+      })
+      .catch((error: unknown) => {
+        console.error('Не удалось загрузить аватар профиля:', error);
+      });
   };
 
   const login = async (email: string, password: string) => {
@@ -75,9 +105,52 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     saveAuthResponse(response.data);
   };
 
-  const loginWithYandex = async (code: string) => {
-    const response = await apiClient.get<AuthResponse>('/auth/yandex/callback', { params: { code } });
+  const loginWithYandex = async (code: string, state: string) => {
+    const response = await apiClient.get<AuthResponse>('/auth/yandex/callback', { params: { code, state } });
     saveAuthResponse(response.data);
+  };
+
+  const updateProfile = async (displayName: string) => {
+    const response = await apiClient.patch<AuthMeResponse>('/auth/me', { name: displayName });
+    const nextUser: User = {
+      id: String(response.data.user_id),
+      email: response.data.email || user?.email || '',
+      display_name: response.data.name || user?.display_name || '',
+      avatar_url: response.data.avatar_url,
+    };
+    localStorage.setItem('auth_user', JSON.stringify(nextUser));
+    setUser(nextUser);
+    return nextUser;
+  };
+
+  const updateAvatar = async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.put<AuthMeResponse>('/auth/me/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    const nextUser: User = {
+      id: String(response.data.user_id),
+      email: response.data.email || user?.email || '',
+      display_name: response.data.name || user?.display_name || '',
+      avatar_url: response.data.avatar_url,
+    };
+    localStorage.setItem('auth_user', JSON.stringify(nextUser));
+    setUser(nextUser);
+    return nextUser;
+  };
+
+  const removeAvatar = async () => {
+    const response = await apiClient.delete<AuthMeResponse>('/auth/me/avatar');
+    const nextUser: User = {
+      id: String(response.data.user_id),
+      email: response.data.email || user?.email || '',
+      display_name: response.data.name || user?.display_name || '',
+      avatar_url: response.data.avatar_url,
+    };
+    localStorage.setItem('auth_user', JSON.stringify(nextUser));
+    setUser(nextUser);
+    return nextUser;
   };
 
   const logout = () => {
@@ -87,7 +160,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, loginWithYandex, logout, isLoading }}>
+    <AuthContext.Provider value={{
+      user,
+      login,
+      register,
+      loginWithYandex,
+      updateProfile,
+      updateAvatar,
+      removeAvatar,
+      logout,
+      isLoading,
+    }}>
       {children}
     </AuthContext.Provider>
   );

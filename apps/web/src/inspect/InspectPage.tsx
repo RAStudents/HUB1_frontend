@@ -34,7 +34,7 @@ export const InspectPage: React.FC = () => {
             type="checkbox"
             checked={showMasks}
             onChange={(e) => setShowMasks(e.target.checked)}
-            className="rounded bg-slate-800 border-slate-700 text-red-500 focus:ring-red-500"
+            className="rounded bg-slate-800 border-slate-700 text-orange-500 focus:ring-orange-500"
           />
           Показывать маски
         </label>

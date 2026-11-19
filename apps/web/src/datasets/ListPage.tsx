@@ -2,8 +2,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-import { useRole } from '../auth/roles';
-import { apiClient } from '../api/client';
+import { getRole } from '../auth/roles';
+import { downloadDatasetExport, getExportProgressLabel } from '../api/exports';
+import type { ExportProgress } from '../api/exports';
 import { Dataset } from '../api/types';
 
 export const ListPage = () => {
@@ -12,11 +13,8 @@ export const ListPage = () => {
   const [activeTab, setActiveTab] = useState<'my' | 'shared'>('my');
   const [datasets, setDatasets] = useState<Dataset[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    loadDatasets();
-  }, [activeTab]);
-
+  const [exportingDatasetId, setExportingDatasetId] = useState<string | null>(null);
+  const [exportProgress, setExportProgress] = useState<ExportProgress | null>(null);
   const loadDatasets = async () => {
     setIsLoading(true);
     try {
@@ -62,10 +60,40 @@ export const ListPage = () => {
     }
   };
 
+  useEffect(() => {
+    loadDatasets();
+  }, [activeTab]);
+
   const taskLabels: Record<string, string> = {
     detect: 'Bounding Box',
     obb: 'OBB (повёрнутые)',
     segment: 'Polygon',
+  };
+
+  const exportDataset = async (
+    event: React.MouseEvent<HTMLButtonElement>,
+    datasetId: string,
+    datasetName: string,
+  ) => {
+    event.stopPropagation();
+    setExportingDatasetId(datasetId);
+    try {
+      const exportedSamples = await downloadDatasetExport(
+        datasetId,
+        datasetName,
+        setExportProgress,
+      );
+      window.alert(
+        exportedSamples
+          ? `Экспортировано кадров: ${exportedSamples}`
+          : 'В датасете нет принятых кадров для экспорта.',
+      );
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Не удалось экспортировать датасет.');
+    } finally {
+      setExportingDatasetId(null);
+      setExportProgress(null);
+    }
   };
 
   return (
@@ -81,7 +109,7 @@ export const ListPage = () => {
           onClick={() => navigate('/datasets/create')}
           className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
         >
-          + Создать датасет
+          Создать датасет
         </button>
       </header>
 
@@ -145,7 +173,7 @@ export const ListPage = () => {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {datasets.map((dataset) => {
-                const { isOwner, canExport } = useRole(dataset.my_role);
+                const { isOwner, canExport } = getRole(dataset.my_role);
                 return (
                   <div
                     key={dataset.id}
@@ -187,26 +215,41 @@ export const ListPage = () => {
                     </div>
 
                     {isOwner && (
-                      <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/datasets/${dataset.id}/members`);
-                          }}
-                          className="text-sm text-blue-600 hover:underline"
-                        >
-                          Участники →
-                        </button>
-                        {canExport && (
+                      <div className="mt-4 pt-3 border-t border-gray-100">
+                        <div className="flex justify-between items-center">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              alert('Экспорт пока не реализован');
+                              navigate(`/datasets/${dataset.id}/members`);
                             }}
-                            className="text-sm text-green-600 hover:underline"
+                            className="text-sm text-blue-600 hover:underline"
                           >
-                            Экспорт ↓
+                            Участники →
                           </button>
+                          {canExport && (
+                            <button
+                              onClick={(event) => exportDataset(event, dataset.id, dataset.name)}
+                              disabled={exportingDatasetId === dataset.id}
+                              className="text-sm text-green-600 hover:underline"
+                            >
+                              {exportingDatasetId === dataset.id ? 'Экспортируем...' : 'Экспорт ↓'}
+                            </button>
+                          )}
+                        </div>
+                        {exportingDatasetId === dataset.id && exportProgress && (
+                          <div className="dataset-export-progress dataset-export-progress--light" aria-live="polite">
+                            <div className="dataset-export-progress__label">
+                              <span>{getExportProgressLabel(exportProgress)}</span>
+                              <span>{exportProgress.progress}%</span>
+                            </div>
+                            <progress
+                              max="100"
+                              value={exportProgress.stage === 'downloading' && !exportProgress.total_download_bytes
+                                ? undefined
+                                : exportProgress.progress}
+                              aria-label="Прогресс экспорта датасета"
+                            />
+                          </div>
                         )}
                       </div>
                     )}

@@ -1,6 +1,6 @@
 import type { Role } from '../api/types';
 
-export const useRole = (datasetRole?: Role) => ({
+export const getRole = (datasetRole?: Role) => ({
   isOwner: datasetRole === 'owner',
   isLabeler: datasetRole === 'labeler',
   isObserver: datasetRole === 'observer',

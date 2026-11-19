@@ -51,27 +51,19 @@ input { font: inherit; }
 .auth-brand { display: flex; align-items: center; gap: 11px; margin-bottom: 25px; color: #eef0f1; font-size: 18px; font-weight: 700; }
 
 .auth-logo {
-  position: relative;
   display: block;
   width: 32px;
   height: 32px;
   flex: 0 0 32px;
   overflow: hidden;
-  border-radius: 50%;
-  background: #000;
+  border-radius: 6px;
 }
 
 .auth-logo img {
-  position: absolute;
-  top: 50%;
-  left: 50%;
   display: block;
-  width: 46px;
-  height: 46px;
-  max-width: none;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  background: #fff;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
 }
 
 .auth-heading { margin-bottom: 24px; }
@@ -80,7 +72,7 @@ input { font: inherit; }
 .auth-footer { margin-top: 20px; color: #92999e; font-size: 12px; text-align: center; }
 .auth-callback-copy { color: #aeb4b8; font-size: 12px; line-height: 1.5; text-align: center; }
 .auth-callback-title { margin: 0 0 8px; color: #f0f1f2; font-size: 19px; text-align: center; }
-.auth-callback-link { display: block; margin-top: 14px; color: #f06b67; font-size: 12px; text-align: center; text-decoration: none; }
+.auth-callback-link { display: block; margin-top: 14px; color: #ff9860; font-size: 12px; text-align: center; text-decoration: none; }
 .auth-callback-link:hover { text-decoration: underline; }
 
 @media (max-width: 420px) {

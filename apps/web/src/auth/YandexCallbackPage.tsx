@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { AuthLayout } from './AuthLayout';
+import { getErrorMessage } from './errorMessage';
 
 export const YandexCallbackPage = () => {
   const { loginWithYandex } = useAuth();
@@ -43,10 +44,10 @@ export const YandexCallbackPage = () => {
       return;
     }
 
-    loginWithYandex(code)
+    loginWithYandex(code, returnedState)
       .then(() => navigate('/', { replace: true }))
-      .catch((err: any) => {
-        setError(err.response?.data?.detail || 'Не удалось войти через Яндекс');
+      .catch((err: unknown) => {
+        setError(getErrorMessage(err, 'Не удалось войти через Яндекс'));
       });
   }, [loginWithYandex, navigate, search]);
 

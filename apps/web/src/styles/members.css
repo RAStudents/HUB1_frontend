@@ -114,3 +114,6 @@
   .members-table__columns, .member-row { grid-template-columns: minmax(0, 1fr) 108px 28px; padding-inline: 10px; }
   .members-side { grid-template-columns: 1fr; }
 }
+.members-load-error { padding: 15px; border: 1px solid #8c554e; border-radius: 7px; background: #613d3733; }
+.members-load-error p { margin: 0 0 12px; color: #ffc0ad; font-size: 13px; line-height: 1.5; }
+.members-load-error .button { min-height: 32px; font-size: 12px; }

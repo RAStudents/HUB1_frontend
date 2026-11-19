@@ -57,7 +57,7 @@ const wait = (milliseconds: number) =>
   new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
 export const downloadDatasetExport = async (
-  datasetId: number | string,
+  datasetId: string,
   datasetName: string,
   onProgress?: (progress: ExportProgress) => void,
   options?: ExportOptions,

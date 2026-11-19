@@ -19,7 +19,7 @@ export const NotificationsPage = () => {
   const [notificationTotal, setNotificationTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
-  const [busyDatasetId, setBusyDatasetId] = useState<number | null>(null);
+  const [busyDatasetId, setBusyDatasetId] = useState<string | null>(null);
   const [busyNotificationId, setBusyNotificationId] = useState<number | null>(null);
   const [error, setError] = useState('');
 
@@ -44,7 +44,7 @@ export const NotificationsPage = () => {
     void loadNotifications();
   }, [loadNotifications]);
 
-  const respondToInvitation = async (datasetId: number, decision: 'accept' | 'decline') => {
+  const respondToInvitation = async (datasetId: string, decision: 'accept' | 'decline') => {
     setBusyDatasetId(datasetId);
     setError('');
     try {

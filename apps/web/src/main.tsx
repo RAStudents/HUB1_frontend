@@ -14,6 +14,7 @@ import './styles/profile.css';
 import './styles/notifications.css';
 import './styles/review.css';
 import './styles/annotation-editor.css';
+import './styles/dataset-pages.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>

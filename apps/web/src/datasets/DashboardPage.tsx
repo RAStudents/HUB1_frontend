@@ -8,7 +8,7 @@ import type { ExportClass, ExportOptions, ExportProgress } from '../api/exports'
 import { useAuth } from '../auth/AuthContext';
 
 interface DatasetItem {
-  id: number;
+  id: string;
   name: string;
   task: 'detect' | 'obb' | 'segment';
   description?: string;
@@ -53,7 +53,7 @@ const roleLabels: Record<string, string> = {
 
 const PREVIEW_COLORS = ['#ef4444', '#f97316', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899'];
 
-const DatasetCardPreview = ({ datasetId, datasetName }: { datasetId: number; datasetName: string }) => {
+const DatasetCardPreview = ({ datasetId, datasetName }: { datasetId: string; datasetName: string }) => {
   const [preview, setPreview] = useState<DatasetPreviewSample | null>(null);
   const [classNames, setClassNames] = useState<Record<number, string>>({});
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
@@ -193,8 +193,8 @@ export const DashboardPage = () => {
   const [activeTab, setActiveTab] = useState<'my' | 'shared'>('my');
   const [datasets, setDatasets] = useState<DatasetItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [deletingDatasetId, setDeletingDatasetId] = useState<number | null>(null);
-  const [exportingDatasetId, setExportingDatasetId] = useState<number | null>(null);
+  const [deletingDatasetId, setDeletingDatasetId] = useState<string | null>(null);
+  const [exportingDatasetId, setExportingDatasetId] = useState<string | null>(null);
   const [exportProgress, setExportProgress] = useState<ExportProgress | null>(null);
   const [exportDialogDataset, setExportDialogDataset] = useState<DatasetItem | null>(null);
   const [exportClasses, setExportClasses] = useState<ExportClass[]>([]);

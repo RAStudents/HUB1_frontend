@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+  <title id="title">HUB</title>
+  <rect width="256" height="256" fill="#08090A" />
+  <g fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" stroke-width="14">
+    <path d="M94 84h48c21 0 34 13 34 31s-14 31-36 31h-28" />
+    <path d="m112 91-34 91" />
+    <path d="m120 94 36 88" />
+    <path d="M69 137h61l35 76" />
+    <path d="m83 182-10 31" />
+  </g>
+</svg>

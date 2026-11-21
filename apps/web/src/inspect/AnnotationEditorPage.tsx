@@ -1034,7 +1034,6 @@ export const AnnotationEditorPage = () => {
           <span className="editor-workspace-controls__divider" aria-hidden="true" />
           <button type="button" title={framesOpen ? 'Скрыть панель кадров' : 'Показать панель кадров'} aria-label="Панель кадров" aria-expanded={framesOpen} onClick={() => setFramesOpen(value => !value)}><EditorIcon name="panels" /></button>
         </div>
-        {tool === 'select' && !readOnly && <span className="annotation-editor__gesture-hint">Объект — переместить · Точки — изменить · Esc — отменить</span>}
         <div aria-label="Инструменты разметки" className="annotation-editor__tools">
           {([
             ['pan', 'Перемещение', 'hand'],
@@ -1061,7 +1060,6 @@ export const AnnotationEditorPage = () => {
               <EditorIcon name={icon} />
             </button>
           ))}
-          <button aria-label="Комментарии" aria-pressed={sidebarTab === 'comments'} onClick={() => setSidebarTab('comments')} type="button" title="Комментарии"><EditorIcon name="comment" /></button>
           <span className="annotation-editor__tool-divider" />
           <button aria-label="Отменить действие" disabled={readOnly || !canUndo} onClick={() => applyHistory('undo')} title="Отменить (Ctrl+Z)" type="button"><EditorIcon name="undo" /></button>
           <button aria-label="Повторить действие" disabled={readOnly || !canRedo} onClick={() => applyHistory('redo')} title="Повторить (Ctrl+Shift+Z / Ctrl+Y)" type="button"><EditorIcon name="redo" /></button>

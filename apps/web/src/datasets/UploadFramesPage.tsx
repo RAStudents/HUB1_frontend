@@ -78,8 +78,15 @@ function UploadFrames({ datasetId }: { datasetId: string }) {
         {entry.status !== 'success' && <button type="button" className="frame-upload-row__action" aria-label={`${entry.status === 'uploading' ? 'Отменить' : 'Удалить'} ${entry.file.name}`} onClick={() => remove(entry.id)}>{entry.status === 'uploading' ? 'Отменить' : 'Удалить'}</button>}
       </article>)}
     </section>}
+    <div className="upload-method-divider">или</div>
     <section className="upload-archive"><div><h2>Импорт готовой разметки</h2><p>Архив YOLO с изображениями, разметкой и data.yaml</p></div><button type="button" className="button button--quiet" disabled={busy || zipBusy} onClick={() => zipRef.current?.click()}><EditorIcon name="file" /> Загрузить архив</button><input ref={zipRef} hidden type="file" accept=".zip" onChange={event => { void importZip(event.target.files?.[0]); event.target.value = ''; }} /></section>
     {(zipBusy || job || zipError) && <div className="upload-archive-status" aria-live="polite">{zipError ? <p role="alert" className="upload-error">{zipError}</p> : job?.status === 'completed' ? <p className="upload-success">✓ Импортировано кадров: {job.imported_samples}</p> : <><p>{job ? `Импорт разметки · ${job.progress}%` : `Загрузка архива · ${zipProgress}%`}</p><progress max={100} value={job?.progress ?? zipProgress} /></>}</div>}
-    <footer className="upload-frames-footer"><small>Готовые кадры сохраняются сразу.</small><button className="button button--quiet" type="button" disabled={busy || zipBusy} onClick={() => navigate(gallery)}>Назад</button><button className="button button--primary" type="button" disabled={busy || zipBusy} onClick={() => navigate(gallery)}>Готово</button></footer>
+    <footer className="upload-frames-footer">
+      <small>Готовые кадры сохраняются сразу.</small>
+      <div className="upload-frames-footer__actions">
+        <button className="button button--quiet" type="button" disabled={busy || zipBusy} onClick={() => navigate(gallery)}>Назад</button>
+        <button className="button button--primary" type="button" disabled={busy || zipBusy} onClick={() => navigate(gallery)}>Готово</button>
+      </div>
+    </footer>
   </section>;
 }

@@ -20,7 +20,7 @@
   place-items: center;
   border-radius: 10px;
   background: var(--app-accent);
-  color: #fff;
+  color: var(--app-on-accent);
   font-size: 10px;
   font-weight: 700;
 }
@@ -51,8 +51,8 @@
   padding: 0 5px;
   place-items: center;
   border-radius: 10px;
-  background: #596269;
-  color: #e0e3e4;
+  background: var(--app-line);
+  color: var(--app-text-secondary);
   font-size: 11px;
 }
 
@@ -68,18 +68,18 @@
 }
 
 .notification-card + .notification-card { border-top: 1px solid var(--app-line); }
-.notification-card--unread { background: rgb(240 106 43 / 5%); }
-.notification-card--invitation { background: rgb(240 106 43 / 7%); }
+.notification-card--unread { background: color-mix(in srgb, var(--app-accent) 5%, transparent); }
+.notification-card--invitation { background: color-mix(in srgb, var(--app-accent) 7%, transparent); }
 .notification-card__body { display: grid; min-width: 0; gap: 6px; }
-.notification-card__body strong { color: #e7e9ea; font-size: 14px; font-weight: 650; }
-.notification-card__body p { margin: 0; color: #b7bec2; font-size: 13px; line-height: 1.5; }
+.notification-card__body strong { color: var(--app-text); font-size: 14px; font-weight: 650; }
+.notification-card__body p { margin: 0; color: var(--app-muted); font-size: 13px; line-height: 1.5; }
 .notification-card__body time { color: var(--app-muted); font-size: 11px; }
 .notification-card__title-row { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
-.notification-unread-label { color: #ffad7d; font-size: 10px; font-weight: 650; }
+.notification-unread-label { color: var(--app-accent-text); font-size: 10px; font-weight: 650; }
 .notification-card__actions { display: flex; flex: 0 0 auto; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .notification-card__actions .button { min-height: 36px; font-size: 12px; }
-.notification-card .button--quiet { border: 1px solid #5b646b; }
-.notification-card .button--quiet:hover { border-color: #F85025; color: #F85025; }
+.notification-card .button--quiet { border: 1px solid var(--app-line-strong); }
+.notification-card .button--quiet:hover { border-color: var(--app-accent); color: var(--app-accent-text); }
 
 .notification-pagination {
   display: flex;

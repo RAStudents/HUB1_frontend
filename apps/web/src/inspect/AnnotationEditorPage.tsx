@@ -3,9 +3,12 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { getApiErrorMessage } from '../api/errorMessage';
 import { annotationHandles, editAnnotation } from './annotationGeometry';
+import { AnnotationShape } from './AnnotationShape';
+import { annotationColor } from './annotationStyle';
 import { EditorComments } from './EditorComments';
 import { EditorIcon } from './EditorIcon';
-import { EditorFrames } from './EditorFrames';
+import { GALLERY_PAGE_SIZE as PAGE_SIZE } from './galleryPagination';
+import { EditorFrames, type FrameSplitFilter } from './EditorFrames';
 import { useUndoHistory } from './useUndoHistory';
 import { useAuth } from '../auth/AuthContext';
 
@@ -74,8 +77,6 @@ interface DraftRect {
   end: Point;
 }
 
-const PAGE_SIZE = 12;
-const COLORS = ['#ef4444', '#f97316', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899'];
 
 const clamp = (value: number) => Math.min(1, Math.max(0, value));
 
@@ -84,13 +85,14 @@ export const AnnotationEditorPage = () => {
   const location = useLocation();
   const { user } = useAuth();
   const [framesOpen, setFramesOpen] = useState(true);
+  const [framesWidth, setFramesWidth] = useState<number | null>(null);
   const [frameNavigating, setFrameNavigating] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<'classes' | 'layers' | 'comments'>('comments');
   const [commentCount, setCommentCount] = useState(0);
   const [annotationsVisible, setAnnotationsVisible] = useState(true);
-  const [browseSplit, setBrowseSplit] = useState<Split | 'all' | null>(() => {
+  const [browseSplit, setBrowseSplit] = useState<FrameSplitFilter | null>(() => {
     const split = new URLSearchParams(location.search).get('split');
-    return split && ['all', 'train', 'val', 'test'].includes(split) ? split as Split | 'all' : null;
+    return split && ['all', 'train', 'val', 'test'].includes(split) ? split as FrameSplitFilter : null;
   });
   const navigate = useNavigate();
   const routeState = location.state as RouteState | null;
@@ -140,7 +142,7 @@ export const AnnotationEditorPage = () => {
   const drawStartRef = useRef<Point | null>(null);
   const editDragRef = useRef<{
     pointerId: number; sampleId: string | undefined; original: Annotation;
-    start: Point; handle: number | 'move';
+    start: Point; handle: number | 'move' | 'rotate';
   } | null>(null);
   const isDirty = JSON.stringify(annotations) !== savedSnapshot;
   const isEditableRole = datasetRole === 'owner' || datasetRole === 'labeler';
@@ -245,6 +247,7 @@ export const AnnotationEditorPage = () => {
     if (filters?.labeled !== undefined) params.set('labeled', String(filters.labeled));
     filters?.classIds?.forEach((classId) => params.append('class_ids', String(classId)));
     const { data } = await apiClient.get<GalleryPage>(`/datasets/${datasetId}/samples?${params.toString()}`, { signal });
+    if (!data.items.length) return data.items;
     setTotalSamples(data.total);
     setLabeledSamples(data.labeled_count);
     setClassNames(Object.fromEntries(data.classes.map(({ id, name }) => [id, name])));
@@ -412,21 +415,20 @@ export const AnnotationEditorPage = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [readOnly, selectedAnnotationId, applyHistory, cancelHistoryGesture, setAnnotations, setPolygonPoints]);
 
-  const toNormalizedPoint = (event: React.PointerEvent<SVGSVGElement>): Point => {
+  const toNormalizedPoint = (event: React.PointerEvent<SVGSVGElement>, limitToImage = true): Point => {
     const bounds = event.currentTarget.getBoundingClientRect();
     const scale = Math.min(bounds.width / naturalSize.width, bounds.height / naturalSize.height);
     const displayedWidth = naturalSize.width * scale;
     const displayedHeight = naturalSize.height * scale;
     const offsetX = (bounds.width - displayedWidth) / 2;
     const offsetY = (bounds.height - displayedHeight) / 2;
-    return {
-      x: clamp((event.clientX - bounds.left - offsetX) / displayedWidth),
-      y: clamp((event.clientY - bounds.top - offsetY) / displayedHeight),
-    };
+    const x = (event.clientX - bounds.left - offsetX) / displayedWidth;
+    const y = (event.clientY - bounds.top - offsetY) / displayedHeight;
+    return limitToImage ? { x: clamp(x), y: clamp(y) } : { x, y };
   };
 
   const handleCanvasPointerDown = (event: React.PointerEvent<SVGSVGElement>) => {
-    if (event.button !== 0 || editDragRef.current || naturalSize.width === 0 || naturalSize.height === 0) return;
+    if (event.button !== 0 || editDragRef.current || drawStartRef.current || naturalSize.width === 0 || naturalSize.height === 0) return;
     if (tool === 'pan') {
       event.preventDefault();
       event.currentTarget.setPointerCapture(event.pointerId);
@@ -441,8 +443,9 @@ export const AnnotationEditorPage = () => {
     }
     if (readOnly && tool !== 'select') return;
 
-    if (tool === 'select') {
-      const target = event.target as SVGElement;
+    const target = event.target as SVGElement;
+    const handleName = target.closest<SVGElement>('[data-edit-handle]')?.dataset.editHandle;
+    if (tool === 'select' || (tool === 'obb' && handleName === 'rotate')) {
       const annotationId = target.closest<SVGGElement>('[data-annotation-id]')?.dataset.annotationId;
       const annotation = annotations.find(item => item.id === Number(annotationId));
       setSelectedAnnotationId(annotationId ? Number(annotationId) : null);
@@ -450,11 +453,11 @@ export const AnnotationEditorPage = () => {
         setSelectedClassId(annotation.class_id);
         if (!readOnly) {
           event.preventDefault();
-          const handle = target.closest<SVGElement>('[data-edit-handle]')?.dataset.editHandle;
+          const handle = handleName === 'rotate' ? 'rotate' : handleName === undefined ? 'move' : Number(handleName);
           beginHistoryGesture();
           editDragRef.current = {
             pointerId: event.pointerId, sampleId, original: annotation,
-            start: toNormalizedPoint(event), handle: handle === undefined ? 'move' : Number(handle),
+            start: toNormalizedPoint(event, handle !== 'rotate'), handle,
           };
           event.currentTarget.setPointerCapture(event.pointerId);
         }
@@ -483,7 +486,8 @@ export const AnnotationEditorPage = () => {
       if (drag.sampleId === sampleId) cancelHistoryGesture();
       return true;
     }
-    const updated = editAnnotation(drag.original, drag.start, toNormalizedPoint(event), drag.handle, naturalSize);
+    const point = toNormalizedPoint(event, drag.handle !== 'rotate');
+    const updated = editAnnotation(drag.original, drag.start, point, drag.handle, naturalSize);
     setAnnotations(current => current.map(item => item.id === drag.original.id ? updated : item));
     return true;
   };
@@ -568,6 +572,12 @@ export const AnnotationEditorPage = () => {
     setError('');
   };
 
+  const withCurrentAnnotations = (frames: Sample[]) => frames.map(frame =>
+    (frame.sample_id ?? frame.id) === (sample?.sample_id ?? sample?.id)
+      ? { ...frame, annotations, objects_count: annotations.length }
+      : frame,
+  );
+
   const saveAnnotations = async () => {
     if (!sample || !datasetId || readOnly) return false;
     setSaving(true);
@@ -586,6 +596,7 @@ export const AnnotationEditorPage = () => {
         { sample_id: sampleIdValue, items: payloadItems },
       );
       setSavedSnapshot(JSON.stringify(annotations));
+      setItems(withCurrentAnnotations);
       setNotice('Разметка сохранена');
       return true;
     } catch (saveError) {
@@ -647,7 +658,7 @@ export const AnnotationEditorPage = () => {
     )));
   };
 
-  const navigateToSample = (nextSample: Sample, nextItems = items, nextPage = galleryPage) => {
+  const navigateToSample = (nextSample: Sample, nextItems = withCurrentAnnotations(items), nextPage = galleryPage) => {
     setError('');
     setNotice('');
     updateRoute(nextSample, nextItems, nextPage, browseSplit ?? nextSample.split);
@@ -676,20 +687,25 @@ export const AnnotationEditorPage = () => {
     }
   };
 
-  const changeSplit = async (split: Split | 'all') => {
+  const changeSplit = async (split: FrameSplitFilter) => {
+    if (!sample || frameNavigating || saving || split === (browseSplit ?? sample.split)) return;
+
+    setFrameNavigating(true);
     setError('');
     try {
+      if (isDirty && !await saveAnnotations()) return;
       const nextItems = await loadSplitPage(split, 1);
-      if (!nextItems.length) { setNotice('В этой выборке пока нет кадров'); return; }
+      if (!nextItems.length) return 'В этой выборке нет подходящих кадров.';
+
+      const currentId = sample.sample_id ?? sample.id;
+      const currentFrame = nextItems.find(item => (item.sample_id ?? item.id) === currentId);
       setBrowseSplit(split);
-      setItems(nextItems);
-      setGalleryPage(1);
-      if (nextItems.length > 0) {
-        setNotice('');
-        updateRoute(nextItems[0], nextItems, 1, split);
-      }
+      setNotice('');
+      updateRoute(currentFrame ? sample : nextItems[0], nextItems, 1, split);
     } catch (splitError) {
-      setError(getApiErrorMessage(splitError, 'Не удалось загрузить выбранный сплит.'));
+      return getApiErrorMessage(splitError, 'Не удалось загрузить кадры выбранной выборки.');
+    } finally {
+      setFrameNavigating(false);
     }
   };
 
@@ -701,6 +717,16 @@ export const AnnotationEditorPage = () => {
       height: Math.abs(draftRect.end.y - draftRect.start.y) * naturalSize.height,
     }
     : null;
+  const selectedObb = selectedAnnotation?.obb;
+  const rotationFrame = draftBox
+    ? { x: draftBox.x + draftBox.width / 2, y: draftBox.y + draftBox.height / 2, top: draftBox.y, angle: 0 }
+    : selectedObb && {
+      x: selectedObb.x * naturalSize.width,
+      y: selectedObb.y * naturalSize.height,
+      top: (selectedObb.y - selectedObb.height / 2) * naturalSize.height,
+      angle: selectedObb.angle_deg,
+    };
+  const rotationRadius = Math.max(10, naturalSize.width * 0.01) / zoom;
 
   if (loading && !sample) {
     return <div className="annotation-editor-state">Загружаем кадр...</div>;
@@ -715,24 +741,17 @@ export const AnnotationEditorPage = () => {
   }
 
   const imageCountOnSplit = totalSamples || items.length;
-  const splitLabel = sample.split === 'val' ? 'Val' : sample.split === 'test' ? 'Test' : 'Train';
+  const frameSplit = sample.split === 'val' || sample.split === 'valid' ? 'val' : sample.split === 'test' ? 'test' : 'train';
+  const selectedSplit = browseSplit ?? frameSplit;
+  const splitLabels = { all: 'Все', train: 'Train', val: 'Val', test: 'Test' };
+  const splitLabel = splitLabels[selectedSplit];
   const currentIndex = items.findIndex((item) => (item.sample_id ?? item.id) === (sample.sample_id ?? sample.id));
   const isFirstFrame = currentIndex <= 0 && galleryPage <= 1;
   const isLastFrame = currentIndex >= items.length - 1
     && galleryPage >= Math.max(1, Math.ceil(imageCountOnSplit / PAGE_SIZE));
-  const annotationColor = (classId: number) => COLORS[(classId % COLORS.length + COLORS.length) % COLORS.length];
-
-  const renderAnnotationLabel = (label: string, color: string, x: number, y: number) => {
-    const fontSize = Math.max(11, naturalSize.width * 0.014);
-    const top = Math.max(0, y - fontSize * 1.65);
-    return <g pointerEvents="none">
-      <rect x={x} y={top} width={Math.max(28, label.length * fontSize * 0.62 + 10)} height={fontSize * 1.45} rx={3} fill={color} />
-      <text x={x + 5} y={top + fontSize * 1.06} fill="#fff" fontSize={fontSize} fontWeight="600">{label}</text>
-    </g>;
-  };
 
   return (
-    <section className={`annotation-editor annotation-editor--frames${framesOpen ? '' : ' is-frames-collapsed'}`}>
+    <section className={`annotation-editor annotation-editor--frames${framesOpen ? '' : ' is-frames-collapsed'}`} style={framesWidth === null ? undefined : { '--frames-width': `${framesWidth}px` } as React.CSSProperties}>
       <header className="annotation-editor__topbar">
         <Link aria-label="Вернуться в галерею" className="annotation-editor__back" to={`/datasets/${datasetId}/gallery`}><EditorIcon name="back" /></Link>
         <div className="annotation-editor__breadcrumbs">
@@ -744,16 +763,16 @@ export const AnnotationEditorPage = () => {
         <span className={`annotation-editor__save-state${isDirty ? ' is-dirty' : ''}`}>
           {!isDirty && !error && <EditorIcon name="check" />}{error ? 'Ошибка' : saving ? 'Сохраняем...' : isDirty ? 'Есть изменения' : notice || 'Сохранено'}
         </span>
-        <label className="annotation-editor__split">
-          Кадр в выборке
-          <select value={sample.split as Split} onChange={(event) => void changeSplit(event.target.value as Split)}>
-            <option value="train">Train</option>
-            <option value="val">Val</option>
-            <option value="test">Test</option>
-          </select>
-        </label>
         <button
-          className="button button--primary"
+          className="button button--primary annotation-editor__action annotation-editor__save"
+          disabled={readOnly || !isDirty || saving}
+          onClick={() => void saveAnnotations()}
+          type="button"
+        >
+          {saving ? 'Сохраняем...' : 'Сохранить'}
+        </button>
+        <button
+          className="button annotation-editor__action annotation-editor__review"
           disabled={readOnly || saving}
           onClick={() => void submitForReview()}
           type="button"
@@ -764,21 +783,8 @@ export const AnnotationEditorPage = () => {
       </header>
 
       <aside className="annotation-editor__sidebar">
-        <div className="annotation-editor__sidebar-heading"><span>Выборка</span><span>{imageCountOnSplit} кадров</span></div>
-        <div className="annotation-editor__split-tabs">
-          {(['all', 'train', 'val', 'test'] as const).map((split) => (
-            <button
-              className={(browseSplit ?? sample.split) === split ? 'is-active' : ''}
-              key={split}
-              onClick={() => void changeSplit(split)}
-              type="button"
-            >
-              {split === 'all' ? 'Все' : split === 'train' ? 'Train' : split === 'val' ? 'Val' : 'Test'}
-            </button>
-          ))}
-        </div>
         <div className="annotation-editor__split-summary">
-          {browseSplit === 'all' ? 'Все' : splitLabel} · {imageCountOnSplit} кадров
+          {splitLabel} · {imageCountOnSplit} кадров
           <span>размечено {labeledSamples}</span>
         </div>
         <div className="annotation-editor__progress">
@@ -928,67 +934,15 @@ export const AnnotationEditorPage = () => {
                 viewBox={`0 0 ${naturalSize.width} ${naturalSize.height}`}
                 preserveAspectRatio="xMidYMid meet"
               >
-                {annotations.map((annotation, index) => {
-                  const color = annotationColor(annotation.class_id);
-                  const id = annotation.id ?? index;
-                  const selected = annotation.id === selectedAnnotationId;
-                  const strokeWidth = Math.max(2, naturalSize.width * 0.0025);
-                  const label = classNames[annotation.class_id] || `Класс ${annotation.class_id}`;
-                  if (annotation.box) {
-                    const { x, y, width, height } = annotation.box;
-                    const left = (x - width / 2) * naturalSize.width;
-                    const top = (y - height / 2) * naturalSize.height;
-                    return (
-                      <g data-annotation-id={annotation.id} key={id}>
-                        <rect
-                          className="annotation-canvas__shape"
-                          fill={`${color}33`}
-                          height={height * naturalSize.height}
-                          stroke={color}
-                          strokeWidth={selected ? strokeWidth * 1.5 : strokeWidth}
-                          width={width * naturalSize.width}
-                          x={left}
-                          y={top}
-                        />
-                        {renderAnnotationLabel(label, color, left, top)}
-                      </g>
-                    );
-                  }
-                  if (annotation.obb) {
-                    const { x, y, width, height, angle_deg } = annotation.obb;
-                    return (
-                      <g data-annotation-id={annotation.id} key={id}>
-                        <rect
-                          className="annotation-canvas__shape"
-                          fill={`${color}33`}
-                          height={height * naturalSize.height}
-                          stroke={color}
-                          strokeWidth={selected ? strokeWidth * 1.5 : strokeWidth}
-                          transform={`rotate(${angle_deg} ${x * naturalSize.width} ${y * naturalSize.height})`}
-                          width={width * naturalSize.width}
-                          x={(x - width / 2) * naturalSize.width}
-                          y={(y - height / 2) * naturalSize.height}
-                        />
-                        {renderAnnotationLabel(label, color, (x - width / 2) * naturalSize.width, (y - height / 2) * naturalSize.height)}
-                      </g>
-                    );
-                  }
-                  const points = annotation.polygon?.points || [];
-                  if (points.length < 3) return null;
-                  const pointsString = points.map((point) => `${point.x * naturalSize.width},${point.y * naturalSize.height}`).join(' ');
-                  return (
-                    <g data-annotation-id={annotation.id} key={id}>
-                      <polygon
-                        className="annotation-canvas__shape"
-                        fill={`${color}33`}
-                        points={pointsString}
-                        stroke={color}
-                        strokeWidth={selected ? strokeWidth * 1.5 : strokeWidth}
-                      />
-                      {renderAnnotationLabel(label, color, points[0].x * naturalSize.width, points[0].y * naturalSize.height)}
-                    </g>
-                  );
-                })}
+                {annotations.map((annotation, index) => (
+                  <AnnotationShape
+                    key={annotation.id ?? index}
+                    annotation={annotation}
+                    size={naturalSize}
+                    label={classNames[annotation.class_id] || `Класс ${annotation.class_id}`}
+                    selected={annotation.id === selectedAnnotationId}
+                  />
+                ))}
                 {selectedAnnotation && tool === 'select' && !readOnly && (
                   <g data-annotation-id={selectedAnnotation.id}>
                     {annotationHandles(selectedAnnotation, naturalSize).map((point, index) => (
@@ -1019,6 +973,42 @@ export const AnnotationEditorPage = () => {
                     y={draftBox.y}
                   />
                 )}
+                {rotationFrame && !readOnly && (tool === 'select' || tool === 'obb') && (
+                  <g
+                    data-annotation-id={draftBox ? undefined : selectedAnnotationId}
+                    transform={`rotate(${rotationFrame.angle} ${rotationFrame.x} ${rotationFrame.y})`}
+                  >
+                    <line
+                      pointerEvents="none"
+                      stroke="var(--app-accent)"
+                      strokeWidth={rotationRadius / 5}
+                      x1={rotationFrame.x}
+                      x2={rotationFrame.x}
+                      y1={rotationFrame.top}
+                      y2={rotationFrame.top - rotationRadius * 2.5}
+                    />
+                    <g transform={`translate(${rotationFrame.x} ${rotationFrame.top - rotationRadius * 2.5}) scale(${rotationRadius})`}>
+                      <circle
+                        aria-label="Повернуть рамку"
+                        className={draftBox ? 'annotation-canvas__rotate-preview' : 'annotation-canvas__rotate-handle'}
+                        data-edit-handle={draftBox ? undefined : 'rotate'}
+                        r={1}
+                        strokeWidth={0.15}
+                      >
+                        {!draftBox && <title>Перетащите, чтобы повернуть рамку</title>}
+                      </circle>
+                      <path
+                        d="M -.48 -.18 A .52 .52 0 1 1 -.35 .38 M -.53 -.50 L -.48 -.18 L -.16 -.23"
+                        fill="none"
+                        pointerEvents="none"
+                        stroke="var(--app-accent)"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={0.16}
+                      />
+                    </g>
+                  </g>
+                )}
                 {polygonPoints.length > 0 && (
                   <g pointerEvents="none">
                     <polyline
@@ -1039,9 +1029,9 @@ export const AnnotationEditorPage = () => {
         </div>
 
         <div className="editor-workspace-controls" aria-label="Вид холста">
-          <label className="editor-workspace-controls__split"><i /><select aria-label="Выборка на холсте" value={browseSplit ?? sample.split} onChange={event => void changeSplit(event.target.value as Split | 'all')}><option value="all">Все</option><option value="train">Train</option><option value="val">Val</option><option value="test">Test</option></select></label>
+          <span className="editor-workspace-controls__frame-split">Кадр в выборке {splitLabels[frameSplit]}</span>
           <button type="button" title={annotationsVisible ? 'Скрыть разметку' : 'Показать разметку'} aria-label="Видимость разметки" aria-pressed={annotationsVisible} onClick={() => setAnnotationsVisible(value => !value)}><EditorIcon name="eye" /></button>
-          <span />
+          <span className="editor-workspace-controls__divider" aria-hidden="true" />
           <button type="button" title={framesOpen ? 'Скрыть панель кадров' : 'Показать панель кадров'} aria-label="Панель кадров" aria-expanded={framesOpen} onClick={() => setFramesOpen(value => !value)}><EditorIcon name="panels" /></button>
         </div>
         {tool === 'select' && !readOnly && <span className="annotation-editor__gesture-hint">Объект — переместить · Точки — изменить · Esc — отменить</span>}
@@ -1096,17 +1086,9 @@ export const AnnotationEditorPage = () => {
             <span>Кадр {(galleryPage - 1) * PAGE_SIZE + Math.max(1, currentIndex + 1)} из {Math.max(totalSamples, imageCountOnSplit)} · {splitLabel}</span>
             <button aria-label="Следующий кадр" disabled={isLastFrame} onClick={() => void moveToPage(1)} type="button">›</button>
           </div>
-          <button
-            className="button button--primary annotation-editor__save"
-            disabled={readOnly || !isDirty || saving}
-            onClick={() => void saveAnnotations()}
-            type="button"
-          >
-            {saving ? 'Сохраняем...' : 'Сохранить'}
-          </button>
         </div>
       </main>
-      {framesOpen && <EditorFrames items={items} selectedId={sample.sample_id ?? sample.id} currentAnnotations={annotations.length} position={(galleryPage - 1) * PAGE_SIZE + Math.max(1, currentIndex + 1)} total={Math.max(totalSamples, imageCountOnSplit)} busy={saving || frameNavigating} isFirst={isFirstFrame} isLast={isLastFrame} onMove={direction => void moveToPage(direction)} onSelect={async frame => {
+      {framesOpen && <EditorFrames split={selectedSplit} onSplitChange={changeSplit} onResize={setFramesWidth} items={items} selectedId={sample.sample_id ?? sample.id} currentAnnotations={annotations} classNames={classNames} position={(galleryPage - 1) * PAGE_SIZE + Math.max(1, currentIndex + 1)} total={Math.max(totalSamples, imageCountOnSplit)} busy={saving || frameNavigating} isFirst={isFirstFrame} isLast={isLastFrame} onMove={direction => void moveToPage(direction)} onSelect={async frame => {
         if ((frame.sample_id ?? frame.id) === (sample.sample_id ?? sample.id) || saving || frameNavigating) return;
         if (isDirty && !await saveAnnotations()) return;
         const next = items.find(item => (item.sample_id ?? item.id) === (frame.sample_id ?? frame.id));

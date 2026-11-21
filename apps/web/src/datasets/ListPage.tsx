@@ -100,29 +100,29 @@ export const ListPage = () => {
     <div>
       <header className="mb-8 flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">
+          <h1 className="text-3xl font-bold text-[var(--app-text)]">
             Привет, {user?.display_name || 'Пользователь'}!
           </h1>
-          <p className="text-gray-500 mt-1">Управление датасетами для разметки</p>
+          <p className="text-[var(--app-muted)] mt-1">Управление датасетами для разметки</p>
         </div>
         <button
           onClick={() => navigate('/datasets/create')}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
+          className="bg-[var(--app-button-fill)] text-[var(--app-button-text)] px-4 py-2 rounded-md hover:underline font-medium"
         >
           Создать датасет
         </button>
       </header>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div className="bg-[var(--app-surface)] rounded-lg shadow-sm border border-[var(--app-line)]">
         {/* Табы */}
-        <div className="border-b border-gray-200">
+        <div className="border-b border-[var(--app-line)]">
           <nav className="flex -mb-px">
             <button
               onClick={() => setActiveTab('my')}
               className={`px-6 py-3 text-sm font-medium border-b-2 ${
                 activeTab === 'my'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  ? 'border-[var(--app-accent)] text-[var(--app-accent-text)]'
+                  : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-text-secondary)]'
               }`}
             >
               Мои датасеты
@@ -131,8 +131,8 @@ export const ListPage = () => {
               onClick={() => setActiveTab('shared')}
               className={`px-6 py-3 text-sm font-medium border-b-2 ${
                 activeTab === 'shared'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  ? 'border-[var(--app-accent)] text-[var(--app-accent-text)]'
+                  : 'border-transparent text-[var(--app-muted)] hover:text-[var(--app-text-secondary)]'
               }`}
             >
               Доступные мне
@@ -143,11 +143,11 @@ export const ListPage = () => {
         {/* Контент */}
         <div className="p-6">
           {isLoading ? (
-            <div className="text-center py-12 text-gray-500">Загрузка...</div>
+            <div className="text-center py-12 text-[var(--app-muted)]">Загрузка...</div>
           ) : datasets.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-[var(--app-muted)]">
               <svg
-                className="mx-auto h-12 w-12 text-gray-400"
+                className="mx-auto h-12 w-12 text-[var(--app-subtle)]"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -159,12 +159,12 @@ export const ListPage = () => {
                   d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"
                 />
               </svg>
-              <h3 className="mt-2 text-sm font-medium text-gray-900">
+              <h3 className="mt-2 text-sm font-medium text-[var(--app-text-strong)]">
                 {activeTab === 'my'
                   ? 'У вас пока нет датасетов'
                   : 'Вам пока не доступны чужие датасеты'}
               </h3>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 text-sm text-[var(--app-muted)]">
                 {activeTab === 'my'
                   ? 'Создайте первый датасет, чтобы начать загрузку и разметку.'
                   : 'Попросите владельца датасета пригласить вас по email.'}
@@ -177,21 +177,21 @@ export const ListPage = () => {
                 return (
                   <div
                     key={dataset.id}
-                    className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition cursor-pointer"
+                    className="border border-[var(--app-line)] rounded-lg p-4 hover:shadow-md transition cursor-pointer"
                     onClick={() => navigate(`/datasets/${dataset.id}`)}
                   >
                     <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-semibold text-gray-800 text-lg">
+                      <h3 className="font-semibold text-[var(--app-text)] text-lg">
                         {dataset.name}
                       </h3>
                       {dataset.is_private && (
-                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                        <span className="text-xs bg-[var(--app-surface-raised)] text-[var(--app-muted)] px-2 py-1 rounded">
                           Приватный
                         </span>
                       )}
                     </div>
 
-                    <div className="space-y-1 text-sm text-gray-600">
+                    <div className="space-y-1 text-sm text-[var(--app-muted)]">
                       <div className="flex justify-between">
                         <span>Тип задачи:</span>
                         <span className="font-medium">
@@ -215,14 +215,14 @@ export const ListPage = () => {
                     </div>
 
                     {isOwner && (
-                      <div className="mt-4 pt-3 border-t border-gray-100">
+                      <div className="mt-4 pt-3 border-t border-[var(--app-line)]">
                         <div className="flex justify-between items-center">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               navigate(`/datasets/${dataset.id}/members`);
                             }}
-                            className="text-sm text-blue-600 hover:underline"
+                            className="text-sm text-[var(--app-accent-text)] hover:underline"
                           >
                             Участники →
                           </button>
@@ -230,7 +230,7 @@ export const ListPage = () => {
                             <button
                               onClick={(event) => exportDataset(event, dataset.id, dataset.name)}
                               disabled={exportingDatasetId === dataset.id}
-                              className="text-sm text-green-600 hover:underline"
+                              className="text-sm text-[var(--app-green)] hover:underline"
                             >
                               {exportingDatasetId === dataset.id ? 'Экспортируем...' : 'Экспорт ↓'}
                             </button>

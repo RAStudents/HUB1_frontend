@@ -22,11 +22,11 @@ export const InspectPage: React.FC = () => {
   const [naturalSize, setNaturalSize] = useState({ width: 640, height: 640 });
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 p-6 flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
+    <div className="min-h-screen bg-[var(--app-bg)] text-[var(--app-text)] p-6 flex flex-col gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--app-line)] pb-4">
         <div>
           <h1 className="text-xl font-bold">Инспектирование сэмпла</h1>
-          <p className="text-sm text-slate-400">Просмотр изображения и масок разметки</p>
+          <p className="text-sm text-[var(--app-subtle)]">Просмотр изображения и масок разметки</p>
         </div>
 
         <label className="flex items-center gap-2 cursor-pointer text-sm">
@@ -34,14 +34,14 @@ export const InspectPage: React.FC = () => {
             type="checkbox"
             checked={showMasks}
             onChange={(e) => setShowMasks(e.target.checked)}
-            className="rounded bg-slate-800 border-slate-700 text-orange-500 focus:ring-orange-500"
+            className="rounded bg-[var(--app-surface)] border-[var(--app-line-strong)] text-[var(--app-accent)] focus:ring-[var(--app-accent)]"
           />
           Показывать маски
         </label>
       </div>
 
       <div className="flex-1 w-full flex justify-center items-center">
-        <div className="w-full max-w-5xl h-[70vh] rounded-lg overflow-hidden border border-slate-800 bg-slate-950 relative shadow-xl flex items-center justify-center">
+        <div className="w-full max-w-5xl h-[70vh] rounded-lg overflow-hidden border border-[var(--app-line)] bg-[var(--app-bg)] relative shadow-xl flex items-center justify-center">
           <Viewport
             imageUrl={imageUrl}
             annotations={annotations}

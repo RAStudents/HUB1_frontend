@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { apiClient } from '../api/client';
 import { getApiErrorMessage } from '../api/errorMessage';
 import { useAuth } from '../auth/AuthContext';
@@ -7,6 +7,8 @@ interface Comment { id: number; user_id: number; author_name: string; body: stri
 interface Props { datasetId: string; sampleId: number; annotationIndex: number | null; canWrite: boolean; isOwner: boolean; onCountChange: (count: number) => void }
 export function EditorComments({ datasetId, sampleId, annotationIndex, canWrite, isOwner, onCountChange }: Props) {
   const { user } = useAuth();
+  const feedRef = useRef<HTMLDivElement>(null);
+  const followLatest = useRef(true);
   const [comments, setComments] = useState<Comment[]>([]);
   const [body, setBody] = useState('');
   const [replyTo, setReplyTo] = useState<Comment | null>(null);
@@ -14,6 +16,23 @@ export function EditorComments({ datasetId, sampleId, annotationIndex, canWrite,
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const url = `/datasets/${datasetId}/samples/${sampleId}/comments`;
+
+  useLayoutEffect(() => {
+    const feed = feedRef.current;
+    if (!feed) return;
+
+    const scrollToLatest = () => {
+      if (followLatest.current && feed.clientHeight > 0) {
+        feed.scrollTop = feed.scrollHeight;
+      }
+    };
+
+    scrollToLatest();
+    const observer = new ResizeObserver(scrollToLatest);
+    observer.observe(feed);
+    return () => observer.disconnect();
+  }, [comments.length]);
+
   useEffect(() => {
     const controller = new AbortController();
     onCountChange(0);
@@ -42,10 +61,20 @@ export function EditorComments({ datasetId, sampleId, annotationIndex, canWrite,
     finally { setBusy(false); }
   };
   const renderComment = (comment: Comment) => <div className="editor-comment" key={comment.id}>
-    <div className="editor-comment__author"><span className="editor-comment__avatar" style={{ background: ['#3478d8', '#f65327', '#c17e28'][Math.abs(comment.user_id) % 3] }}>{comment.author_name.trim().slice(0, 2).toUpperCase()}</span><strong>{comment.author_name}</strong><time dateTime={comment.created_at}>{new Date(comment.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</time></div><p>{comment.body}</p>
+    <div className="editor-comment__author"><span className="editor-comment__avatar" style={{ background: ['#3478d8', 'var(--app-accent-dark)', '#c17e28'][Math.abs(comment.user_id) % 3] }}>{comment.author_name.trim().slice(0, 2).toUpperCase()}</span><strong>{comment.author_name}</strong><time dateTime={comment.created_at}>{new Date(comment.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</time></div><p>{comment.body}</p>
   </div>;
   return <div className="editor-discussion">
-    <div className="editor-discussion__feed" aria-live="polite">
+    <div
+      ref={feedRef}
+      className="editor-discussion__feed"
+      aria-live="polite"
+      onScroll={event => {
+        const feed = event.currentTarget;
+        if (feed.clientHeight > 0) {
+          followLatest.current = feed.scrollHeight - feed.clientHeight - feed.scrollTop <= 2;
+        }
+      }}
+    >
       {loading && <p className="editor-discussion__empty">Загружаем обсуждения…</p>}
       {!loading && comments.length === 0 && <div className="editor-discussion__empty"><EditorIcon name="comment" /><p>Обсудите разметку</p><span>Выберите объект, чтобы оставить комментарий к нему, или напишите ко всему кадру.</span></div>}
       {comments.filter(c => c.parent_id === null).map(comment => <article className={`editor-thread${comment.resolved ? ' is-resolved' : ''}${comment.annotation_index === annotationIndex && annotationIndex !== null ? ' is-linked' : ''}`} key={comment.id}>
@@ -58,7 +87,20 @@ export function EditorComments({ datasetId, sampleId, annotationIndex, canWrite,
     <form className="editor-discussion__composer" onSubmit={event => void send(event)}>
       {error && <p role="alert" className="editor-discussion__error">{error}</p>}
       {replyTo && <div className="editor-discussion__reply">Ответ: {replyTo.author_name}<button aria-label="Отменить ответ" type="button" onClick={() => setReplyTo(null)}>×</button></div>}
-      <div><textarea aria-label="Комментарий" placeholder={canWrite ? 'Написать комментарий…' : 'Комментарии доступны для чтения'} rows={2} maxLength={2000} disabled={!canWrite || busy} value={body} onChange={event => setBody(event.target.value)} /><button aria-label="Отправить комментарий" disabled={!canWrite || busy || !body.trim()} type="submit"><EditorIcon name="send" /></button></div>
+      <div className="editor-discussion__input-row">
+        <div className="editor-discussion__input" data-value={body}>
+          <textarea
+            aria-label="Комментарий"
+            placeholder={canWrite ? 'Написать комментарий…' : 'Комментарии доступны для чтения'}
+            rows={1}
+            maxLength={2000}
+            disabled={!canWrite || busy}
+            value={body}
+            onChange={event => setBody(event.target.value)}
+          />
+        </div>
+        <button className="editor-discussion__send" aria-label="Отправить комментарий" disabled={!canWrite || busy || !body.trim()} type="submit"><EditorIcon name="send" /></button>
+      </div>
       <small>{replyTo ? 'Ответ в обсуждении' : annotationIndex === null ? 'Комментарий ко всему кадру' : `Привяжется к выбранному объекту: #${annotationIndex + 1}`}</small>
     </form>
   </div>;

@@ -85,7 +85,7 @@ function DistributionChart({ items, type }: { items: ChartItem[]; type: ChartTyp
           <text x="34" y={139 - fraction * 115} textAnchor="end">{Math.round(maximum * fraction).toLocaleString('ru-RU')}</text>
         </g>
       ))}
-      <polyline points={points.map(({ x, y }) => `${x},${y}`).join(' ')} fill="none" stroke="var(--app-accent-text)" strokeWidth="2" />
+      <polyline points={points.map(({ x, y }) => `${x},${y}`).join(' ')} fill="none" stroke="var(--app-text-secondary)" strokeWidth="2" />
       {points.map(({ label, count, color, x, y }, index) => (
         <g key={label}>
           <circle cx={x} cy={y} r="4" fill={color}><title>{label}: {count}</title></circle>

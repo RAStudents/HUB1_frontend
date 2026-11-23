@@ -50,8 +50,8 @@
 
 .dataset-statistics {
   --heatmap-empty: var(--app-surface);
-  --heatmap-low: var(--app-accent-dark);
-  --heatmap-high: var(--app-accent);
+  --heatmap-low: #5a5a5a;
+  --heatmap-high: #ededed;
   display: grid;
   gap: 14px;
   margin: -8px 0 25px;

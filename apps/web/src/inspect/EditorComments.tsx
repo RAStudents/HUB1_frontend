@@ -4,11 +4,12 @@ import { getApiErrorMessage } from '../api/errorMessage';
 import { useAuth } from '../auth/AuthContext';
 import { EditorIcon } from './EditorIcon';
 interface Comment { id: number; user_id: number; author_name: string; body: string; parent_id: number | null; annotation_index: number | null; resolved: boolean; created_at: string }
-interface Props { datasetId: string; sampleId: number; annotationIndex: number | null; canWrite: boolean; isOwner: boolean; onCountChange: (count: number) => void }
-export function EditorComments({ datasetId, sampleId, annotationIndex, canWrite, isOwner, onCountChange }: Props) {
+interface Props { datasetId: string; sampleId: number; annotationIndex: number | null; canWrite: boolean; isOwner: boolean; active: boolean; onCountChange: (count: number) => void; onUnreadCountChange: (count: number) => void }
+export function EditorComments({ datasetId, sampleId, annotationIndex, canWrite, isOwner, active, onCountChange, onUnreadCountChange }: Props) {
   const { user } = useAuth();
   const feedRef = useRef<HTMLDivElement>(null);
   const followLatest = useRef(true);
+  const lastReadComment = useRef({ key: '', id: 0 });
   const [comments, setComments] = useState<Comment[]>([]);
   const [body, setBody] = useState('');
   const [replyTo, setReplyTo] = useState<Comment | null>(null);
@@ -42,6 +43,38 @@ export function EditorComments({ datasetId, sampleId, annotationIndex, canWrite,
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [url, onCountChange]);
+
+  const userId = user?.id;
+  useEffect(() => {
+    if (!userId || loading) {
+      onUnreadCountChange(0);
+      return;
+    }
+
+    const key = `hub:comments:last-read:${userId}:${datasetId}:${sampleId}`;
+    if (lastReadComment.current.key !== key) {
+      let id = 0;
+      try {
+        id = Number(window.localStorage.getItem(key)) || 0;
+      } catch {
+        // Keep the read state in memory when browser storage is unavailable.
+      }
+      lastReadComment.current = { key, id };
+    }
+
+    const unread = comments.filter(comment => String(comment.user_id) !== userId && comment.id > lastReadComment.current.id);
+    onUnreadCountChange(active ? 0 : unread.length);
+    if (active && unread.length > 0) {
+      const id = unread.reduce((latest, comment) => Math.max(latest, comment.id), lastReadComment.current.id);
+      lastReadComment.current.id = id;
+      try {
+        window.localStorage.setItem(key, String(id));
+      } catch {
+        // The current editor still keeps the read state in memory.
+      }
+    }
+  }, [active, comments, datasetId, loading, onUnreadCountChange, sampleId, userId]);
+
   const update = (next: Comment[]) => { setComments(next); onCountChange(next.filter(c => c.parent_id === null && !c.resolved).length); };
   const send = async (event: React.FormEvent) => {
     event.preventDefault(); if (!body.trim() || busy) return;

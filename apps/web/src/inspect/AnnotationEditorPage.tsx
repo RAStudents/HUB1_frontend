@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { isAxiosError } from 'axios';
 import { apiClient } from '../api/client';
 import { getApiErrorMessage } from '../api/errorMessage';
 import { annotationHandles, editAnnotation } from './annotationGeometry';
@@ -48,6 +49,7 @@ interface Sample {
 }
 
 interface GalleryPage {
+  page: number;
   total: number;
   labeled_count: number;
   unlabeled_count: number;
@@ -87,8 +89,9 @@ export const AnnotationEditorPage = () => {
   const [framesOpen, setFramesOpen] = useState(true);
   const [framesWidth, setFramesWidth] = useState<number | null>(null);
   const [frameNavigating, setFrameNavigating] = useState(false);
-  const [sidebarTab, setSidebarTab] = useState<'classes' | 'layers' | 'comments'>('comments');
+  const [sidebarTab, setSidebarTab] = useState<'classes' | 'layers' | 'comments'>('layers');
   const [commentCount, setCommentCount] = useState(0);
+  const [unreadCommentCount, setUnreadCommentCount] = useState(0);
   const [annotationsVisible, setAnnotationsVisible] = useState(true);
   const [browseSplit, setBrowseSplit] = useState<FrameSplitFilter | null>(() => {
     const split = new URLSearchParams(location.search).get('split');
@@ -110,7 +113,7 @@ export const AnnotationEditorPage = () => {
   const [editingClassId, setEditingClassId] = useState<number | null>(null);
   const [classError, setClassError] = useState('');
   const [classSaving, setClassSaving] = useState(false);
-  const [filters] = useState<RouteState['filters']>(routeState?.filters);
+  const [filters, setFilters] = useState<RouteState['filters']>(routeState?.filters);
   const [selectedClassIdState, setSelectedClassId] = useState<number | null>(null);
   const { value: annotationState, setValue: setAnnotationState, canUndo, canRedo,
     begin: beginHistoryGesture, commit: commitHistoryGesture, cancel: cancelHistoryGesture,
@@ -214,7 +217,9 @@ export const AnnotationEditorPage = () => {
     }
   };
 
-  const updateRoute = (nextSample: Sample, nextItems: Sample[], nextPage: number, split: string) => {
+  const updateRoute = (nextSample: Sample, nextItems: Sample[], nextPage: number, split: string,
+    context: Pick<RouteState, 'totalSamples' | 'labeledSamples' | 'filters'> = { totalSamples, labeledSamples, filters },
+  ) => {
     if (!datasetId) return;
     setSample(nextSample);
     setItems(nextItems);
@@ -228,31 +233,35 @@ export const AnnotationEditorPage = () => {
         classNames,
         datasetRole,
         page: nextPage,
-        totalSamples,
-        labeledSamples,
-        filters,
+        ...context,
       } satisfies RouteState,
     });
   };
 
-  const loadSplitPage = useCallback(async (split: Split | 'all', page: number, signal?: AbortSignal) => {
+  const fetchGalleryPage = useCallback(async (split: FrameSplitFilter, page: number, signal?: AbortSignal, anchorId?: number) => {
     if (!datasetId) throw new Error('Не указан датасет');
     const params = new URLSearchParams({
       split,
       page: String(page),
       page_size: String(PAGE_SIZE),
     });
+    if (anchorId !== undefined) params.set('anchor_sample_id', String(anchorId));
     if (filters?.status && filters.status !== 'all') params.set('status', filters.status);
     if (filters?.objectCount && filters.objectCount !== 'all') params.set('object_count', filters.objectCount);
     if (filters?.labeled !== undefined) params.set('labeled', String(filters.labeled));
     filters?.classIds?.forEach((classId) => params.append('class_ids', String(classId)));
     const { data } = await apiClient.get<GalleryPage>(`/datasets/${datasetId}/samples?${params.toString()}`, { signal });
+    return data;
+  }, [datasetId, filters]);
+
+  const loadSplitPage = useCallback(async (split: FrameSplitFilter, page: number, signal?: AbortSignal) => {
+    const data = await fetchGalleryPage(split, page, signal);
     if (!data.items.length) return data.items;
     setTotalSamples(data.total);
     setLabeledSamples(data.labeled_count);
     setClassNames(Object.fromEntries(data.classes.map(({ id, name }) => [id, name])));
     return data.items;
-  }, [datasetId, filters]);
+  }, [fetchGalleryPage]);
 
   useEffect(() => {
     if (!datasetId || !sampleId || initialSample) return;
@@ -687,6 +696,50 @@ export const AnnotationEditorPage = () => {
     }
   };
 
+  const selectFrame = async (id: number, fromSearch: boolean) => {
+    if (!datasetId || !sample || id === (sample.sample_id ?? sample.id) || saving || frameNavigating) return;
+    const next = items.find(item => (item.sample_id ?? item.id) === id);
+    if (!next && !fromSearch) return;
+
+    setFrameNavigating(true);
+    try {
+      if (isDirty && !await saveAnnotations()) return;
+      if (next) {
+        navigateToSample(next);
+        return;
+      }
+      let split = browseSplit ?? (sample.split === 'valid' ? 'val' : sample.split as Split);
+      let nextFilters = filters;
+      let data: GalleryPage;
+      try {
+        data = await fetchGalleryPage(split, 1, undefined, id);
+      } catch (error) {
+        if (!isAxiosError(error) || error.response?.status !== 404 || (split === 'all' && !filters)) throw error;
+        const response = await apiClient.get<GalleryPage>(`/datasets/${datasetId}/samples`, {
+          params: { anchor_sample_id: id, page_size: PAGE_SIZE },
+        });
+        data = response.data;
+        split = 'all';
+        nextFilters = undefined;
+      }
+      const found = data.items.find(item => (item.sample_id ?? item.id) === id);
+      if (!found) throw new Error('Кадр не найден.');
+      setBrowseSplit(split);
+      setFilters(nextFilters);
+      setTotalSamples(data.total);
+      setLabeledSamples(data.labeled_count);
+      setError('');
+      setNotice('');
+      updateRoute(found, data.items, data.page, split, {
+        totalSamples: data.total, labeledSamples: data.labeled_count, filters: nextFilters,
+      });
+    } catch (selectionError) {
+      setError(getApiErrorMessage(selectionError, 'Не удалось открыть кадр.'));
+    } finally {
+      setFrameNavigating(false);
+    }
+  };
+
   const changeSplit = async (split: FrameSplitFilter) => {
     if (!sample || frameNavigating || saving || split === (browseSplit ?? sample.split)) return;
 
@@ -791,9 +844,10 @@ export const AnnotationEditorPage = () => {
           <span style={{ width: `${imageCountOnSplit ? Math.min(100, (labeledSamples / imageCountOnSplit) * 100) : 0}%` }} />
         </div>
         <div className="annotation-editor__panel-tabs" role="tablist" aria-label="Панель редактора">
-          {([['classes', 'Классы', classes.length], ['layers', 'Слои', annotations.length], ['comments', 'Комментарии', commentCount]] as const).map(([value, label, count]) => (
-            <button key={value} role="tab" aria-selected={sidebarTab === value} aria-controls={`editor-panel-${value}`} id={`editor-tab-${value}`} onClick={() => setSidebarTab(value)} type="button">{label}<span>{count}</span></button>
-          ))}
+          {([['classes', 'Классы', classes.length], ['layers', 'Слои', annotations.length], ['comments', 'Комментарии', commentCount]] as const).map(([value, label, count]) => {
+            const unread = value === 'comments' && sidebarTab !== 'comments' ? unreadCommentCount : 0;
+            return <button key={value} role="tab" aria-selected={sidebarTab === value} aria-controls={`editor-panel-${value}`} id={`editor-tab-${value}`} onClick={() => setSidebarTab(value)} type="button">{label}<span data-unread={unread > 0 || undefined}>{unread || count}</span></button>;
+          })}
         </div>
         <div className="annotation-editor__sidebar-content" id="editor-panel-classes" role="tabpanel" aria-labelledby="editor-tab-classes" hidden={sidebarTab !== 'classes'}>
         <div className="annotation-editor__class-select">
@@ -898,7 +952,7 @@ export const AnnotationEditorPage = () => {
           {annotations.length === 0 && <p className="annotation-editor__empty">На этом кадре пока нет объектов</p>}
         </div>
         <div className="annotation-editor__comments-panel" id="editor-panel-comments" role="tabpanel" aria-labelledby="editor-tab-comments" hidden={sidebarTab !== 'comments'}>
-          {datasetId && <EditorComments key={`${datasetId}/${sample.id}`} datasetId={datasetId} sampleId={sample.sample_id ?? sample.id} annotationIndex={selectedAnnotation ? annotations.findIndex(item => item.id === selectedAnnotation.id) : null} canWrite={isEditableRole} isOwner={datasetRole === 'owner'} onCountChange={setCommentCount} />}
+          {datasetId && <EditorComments key={`${datasetId}/${sample.id}`} datasetId={datasetId} sampleId={sample.sample_id ?? sample.id} annotationIndex={selectedAnnotation ? annotations.findIndex(item => item.id === selectedAnnotation.id) : null} canWrite={isEditableRole} isOwner={datasetRole === 'owner'} active={sidebarTab === 'comments'} onCountChange={setCommentCount} onUnreadCountChange={setUnreadCommentCount} />}
         </div>
         {lockError && <p className="annotation-editor__lock-message" role="status">{lockError}</p>}
         {error && <p className="annotation-editor__error" role="alert">{error}</p>}
@@ -1042,35 +1096,35 @@ export const AnnotationEditorPage = () => {
               sample.task === 'segment' ? 'Многоугольник' : sample.task === 'obb' ? 'Поворотная рамка' : 'Прямоугольник',
               sample.task === 'segment' ? 'polygon' : 'box'],
           ] as Array<[Tool, string, string]>).map(([value, label, icon]) => (
-            <button
-              aria-label={label}
-              aria-pressed={tool === value}
-              className={tool === value ? 'is-active' : ''}
-              disabled={readOnly && value !== 'pan' && value !== 'select'}
-              key={value}
-              onClick={() => {
-                setTool(value);
-                setAnnotationsVisible(true);
-                setPolygonPoints([]);
-                setDraftRect(null);
-              }}
-              title={label}
-              type="button"
-            >
-              <EditorIcon name={icon} />
-            </button>
+            <div className="annotation-editor__tool-row" key={value}>
+              <button
+                aria-label={label}
+                aria-pressed={tool === value}
+                className={`annotation-editor__tool${tool === value ? ' is-active' : ''}`}
+                disabled={readOnly && value !== 'pan' && value !== 'select'}
+                onClick={() => {
+                  setTool(value);
+                  setAnnotationsVisible(true);
+                  setPolygonPoints([]);
+                  setDraftRect(null);
+                }}
+                title={label}
+                type="button"
+              >
+                <EditorIcon name={icon} />
+              </button>
+              {value === 'polygon' && tool === value && !readOnly && polygonPoints.length >= 3 && (
+                <button className="annotation-editor__finish-polygon" onClick={finishPolygon} type="button">
+                  Завершить контур
+                </button>
+              )}
+            </div>
           ))}
           <span className="annotation-editor__tool-divider" />
-          <button aria-label="Отменить действие" disabled={readOnly || !canUndo} onClick={() => applyHistory('undo')} title="Отменить (Ctrl+Z)" type="button"><EditorIcon name="undo" /></button>
-          <button aria-label="Повторить действие" disabled={readOnly || !canRedo} onClick={() => applyHistory('redo')} title="Повторить (Ctrl+Shift+Z / Ctrl+Y)" type="button"><EditorIcon name="redo" /></button>
-          <button aria-label="Удалить выбранный объект" disabled={readOnly || selectedAnnotationId === null} onClick={removeSelectedAnnotation} title="Удалить объект" type="button"><EditorIcon name="delete" /></button>
+          <button aria-label="Отменить действие" className="annotation-editor__tool" disabled={readOnly || !canUndo} onClick={() => applyHistory('undo')} title="Отменить (Ctrl+Z)" type="button"><EditorIcon name="undo" /></button>
+          <button aria-label="Повторить действие" className="annotation-editor__tool" disabled={readOnly || !canRedo} onClick={() => applyHistory('redo')} title="Повторить (Ctrl+Shift+Z / Ctrl+Y)" type="button"><EditorIcon name="redo" /></button>
+          <button aria-label="Удалить выбранный объект" className="annotation-editor__tool" disabled={readOnly || selectedAnnotationId === null} onClick={removeSelectedAnnotation} title="Удалить объект" type="button"><EditorIcon name="delete" /></button>
         </div>
-
-        {polygonPoints.length >= 3 && (
-          <button className="annotation-editor__finish-polygon" onClick={finishPolygon} type="button">
-            Завершить контур
-          </button>
-        )}
 
         <div className="annotation-editor__bottom-bar">
           <div className="annotation-editor__zoom">
@@ -1086,12 +1140,7 @@ export const AnnotationEditorPage = () => {
           </div>
         </div>
       </main>
-      {framesOpen && <EditorFrames split={selectedSplit} onSplitChange={changeSplit} onResize={setFramesWidth} items={items} selectedId={sample.sample_id ?? sample.id} currentAnnotations={annotations} classNames={classNames} position={(galleryPage - 1) * PAGE_SIZE + Math.max(1, currentIndex + 1)} total={Math.max(totalSamples, imageCountOnSplit)} busy={saving || frameNavigating} isFirst={isFirstFrame} isLast={isLastFrame} onMove={direction => void moveToPage(direction)} onSelect={async frame => {
-        if ((frame.sample_id ?? frame.id) === (sample.sample_id ?? sample.id) || saving || frameNavigating) return;
-        if (isDirty && !await saveAnnotations()) return;
-        const next = items.find(item => (item.sample_id ?? item.id) === (frame.sample_id ?? frame.id));
-        if (next) navigateToSample(next);
-      }} />}
+      {framesOpen && datasetId && <EditorFrames key={datasetId} datasetId={datasetId} split={selectedSplit} onSplitChange={changeSplit} onResize={setFramesWidth} items={items} selectedId={sample.sample_id ?? sample.id} currentAnnotations={annotations} classNames={classNames} position={(galleryPage - 1) * PAGE_SIZE + Math.max(1, currentIndex + 1)} total={Math.max(totalSamples, imageCountOnSplit)} busy={saving || frameNavigating} isFirst={isFirstFrame} isLast={isLastFrame} onMove={direction => void moveToPage(direction)} onSelect={(id, fromSearch) => void selectFrame(id, fromSearch)} />}
     </section>
   );
 };

@@ -331,7 +331,9 @@
   box-shadow: 0 6px 20px rgb(0 0 0 / 20%);
 }
 
-.annotation-editor__tools button,
+.annotation-editor__tool-row { position: relative; }
+
+.annotation-editor__tool,
 .annotation-editor__zoom button,
 .annotation-editor__frame-nav button {
   display: grid;
@@ -346,8 +348,8 @@
   cursor: pointer;
 }
 
-.annotation-editor__tools button:hover,
-.annotation-editor__tools button.is-active,
+.annotation-editor__tool:hover,
+.annotation-editor__tool.is-active,
 .annotation-editor__zoom button:hover:not(:disabled),
 .annotation-editor__frame-nav button:hover:not(:disabled) {
   border-color: var(--app-line-strong);
@@ -357,15 +359,15 @@
 
 .annotation-editor__finish-polygon {
   position: absolute;
-  right: 82px;
-  bottom: 86px;
-  min-height: 36px;
-  padding: 0 12px;
+  inset-block: 0;
+  right: calc(100% + 12px);
+  padding: 0 10px;
   border: 1px solid var(--app-button-fill);
   border-radius: 5px;
   background: var(--app-button-fill);
   color: var(--app-button-text);
   font-size: 11px;
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -500,8 +502,9 @@
 .annotation-editor__panel-tabs { display: flex; flex: 0 0 auto; border-top: 1px solid var(--app-line); border-bottom: 1px solid var(--app-line); padding: 0 8px; }
 .annotation-editor__panel-tabs button { display: flex; min-width: 0; min-height: 37px; flex: 1; justify-content: center; align-items: center; gap: 5px; padding: 0 3px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--app-muted); font-size: 10px; cursor: pointer; }
 .annotation-editor__panel-tabs button[aria-selected='true'] { border-bottom-color: var(--app-accent); color: var(--app-text); }
+.annotation-editor__panel-tabs #editor-tab-comments[aria-selected='true'] { border-bottom-color: var(--app-muted); }
 .annotation-editor__panel-tabs button > span { min-width: 13px; padding: 1px 3px; border-radius: 8px; background: var(--app-surface-raised); color: var(--app-text-secondary); font-size: 9px; }
-.annotation-editor__panel-tabs button:last-child > span { background: var(--app-accent); color: var(--app-on-accent); }
+.annotation-editor__panel-tabs button > span[data-unread='true'] { background: var(--app-accent); color: var(--app-on-accent); }
 .annotation-editor__sidebar-content { min-height: 0; overflow-y: auto; padding-top: 16px; }
 .annotation-editor__class-select { padding: 0 12px 12px; }
 .annotation-editor__class-select select { font-size: 11px; }
@@ -520,9 +523,9 @@
 .annotation-editor__image-split { position: absolute; top: 70px; left: 32px; display: flex; align-items: center; gap: 5px; color: var(--app-text-secondary); font-size: 10px; }
 .annotation-editor__image-split i { width: 5px; height: 5px; border-radius: 50%; background: #5bcb96; }
 .annotation-editor__tools { right: 18px; gap: 4px; padding: 7px 5px; border-color: var(--app-line); border-radius: 9px; background: var(--app-surface); box-shadow: 0 5px 14px #0002; }
-.annotation-editor__tools button { width: 30px; min-width: 30px; height: 30px; border-radius: 6px; }
-.annotation-editor__tools button.is-active { border-color: transparent; background: var(--app-button-fill); color: var(--app-button-text); }
-.annotation-editor__tools button:hover:not(:disabled):not(.is-active) { border-color: transparent; background: var(--app-line); }
+.annotation-editor__tool { width: 30px; min-width: 30px; height: 30px; border-radius: 6px; }
+.annotation-editor__tool.is-active { border-color: transparent; background: var(--app-button-fill); color: var(--app-button-text); }
+.annotation-editor__tool:hover:not(:disabled):not(.is-active) { border-color: transparent; background: var(--app-line); }
 .annotation-editor__tool-divider { height: 1px; margin: 3px 4px; background: var(--app-line); }
 .annotation-editor__bottom-bar { right: 20px; bottom: 20px; left: 20px; min-height: 30px; padding: 0; border: 0; border-radius: 0; background: transparent; pointer-events: none; }
 .annotation-editor__bottom-bar > * { pointer-events: auto; }

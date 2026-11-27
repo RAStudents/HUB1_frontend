@@ -128,7 +128,7 @@ export const Viewport = ({
   return (
     <div 
       ref={containerRef}
-      className="w-full h-full bg-gray-900 overflow-hidden cursor-grab active:cursor-grabbing relative"
+      className="w-full h-full bg-[var(--app-bg)] overflow-hidden cursor-grab active:cursor-grabbing relative"
       onWheel={handleWheel}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}

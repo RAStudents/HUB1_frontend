@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { apiClient } from '../api/client';
 import type { AuthMeResponse, AuthResponse, User } from '../api/types';
+import { clearSession, getSession, parseSession, SESSION_KEY, storeSession } from './session';
 
 interface AuthContextValue {
   user: User | null;
@@ -21,14 +22,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    if (!token) {
+    const session = getSession();
+    if (!session) {
       setIsLoading(false);
       return;
     }
 
     apiClient.get<AuthMeResponse>('/auth/me')
       .then(({ data }) => {
+        if (getSession()?.id !== session.id) return;
         const userId = String(data.user_id);
         const cachedUser = localStorage.getItem('auth_user');
 
@@ -61,10 +63,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(nextUser);
       })
       .catch(() => {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('auth_user');
+        if (getSession()?.id !== session.id) return;
+        const cachedUser = localStorage.getItem('auth_user');
+        if (cachedUser) {
+          try {
+            setUser(JSON.parse(cachedUser) as User);
+          } catch {
+            localStorage.removeItem('auth_user');
+          }
+        }
       })
       .finally(() => setIsLoading(false));
+  }, []);
+
+  useEffect(() => {
+    const syncSession = (event: StorageEvent) => {
+      if (event.key !== SESSION_KEY) return;
+      const previous = parseSession(event.oldValue);
+      if (previous && parseSession(event.newValue)?.id !== previous.id) {
+        window.location.reload();
+      }
+    };
+    window.addEventListener('storage', syncSession);
+    return () => window.removeEventListener('storage', syncSession);
   }, []);
 
   const saveAuthResponse = (response: AuthResponse) => {
@@ -73,11 +94,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       email: response.email,
       display_name: response.name,
     };
-    localStorage.setItem('access_token', response.access_token);
+    storeSession(response);
     localStorage.setItem('auth_user', JSON.stringify(nextUser));
     setUser(nextUser);
+    const sessionId = getSession()?.id;
     void apiClient.get<AuthMeResponse>('/auth/me')
       .then(({ data }) => {
+        if (getSession()?.id !== sessionId) return;
         const updatedUser = {
           ...nextUser,
           avatar_url: data.avatar_url,
@@ -154,8 +177,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('auth_user');
+    clearSession();
     setUser(null);
   };
 

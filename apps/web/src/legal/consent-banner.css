@@ -5,29 +5,29 @@
   bottom: 20px;
   width: min(440px, calc(100vw - 40px));
   padding: 15px 18px;
-  border: 1px solid #4b91d1;
+  border: 1px solid var(--app-accent-line);
   border-radius: 9px;
-  background: #193b5c;
+  background: var(--app-header);
   box-shadow: 0 8px 26px rgb(0 0 0 / 28%);
-  color: #eef6ff;
+  color: var(--app-text);
   font-size: 14px;
   line-height: 1.55;
 }
 
 .consent-banner a {
-  color: #8bc6ff;
+  color: var(--app-accent-text);
   font-weight: 650;
   text-decoration: underline;
   text-underline-offset: 3px;
 }
 
 .consent-banner a:hover {
-  color: #fff;
+  color: var(--app-text-strong);
 }
 
 .consent-banner a:focus-visible {
   border-radius: 2px;
-  outline: 2px solid #fff;
+  outline: 2px solid var(--app-text-strong);
   outline-offset: 3px;
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 
-const FALLBACK_COLOR = '#f06a2b';
+const FALLBACK_COLOR = 'var(--app-accent)';
 
 const getDominantColor = (image: HTMLImageElement): string => {
   const canvas = document.createElement('canvas');

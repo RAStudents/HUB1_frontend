@@ -27,7 +27,7 @@
 }
 
 .consent-page__policy a {
-  color: var(--app-blue);
+  color: var(--app-accent-text);
 }
 
 .consent-page__policy a:hover {

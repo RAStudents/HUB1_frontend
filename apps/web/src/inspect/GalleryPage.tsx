@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { apiClient } from '../api/client';
 import { EditorIcon } from './EditorIcon';
+import { GALLERY_PAGE_SIZE as PAGE_SIZE } from './galleryPagination';
 import { downloadDatasetExport, type ExportProgress } from '../api/exports';
 import { getApiErrorMessage } from '../api/errorMessage';
 
@@ -34,7 +35,6 @@ type GalleryFilter = 'all' | 'labeled' | 'unlabeled';
 type ObjectCountFilter = 'all' | 'none' | 'one' | 'multiple';
 type SplitFilter = 'all' | 'train' | 'val' | 'test';
 
-const PAGE_SIZE = 12;
 const REVIEW_STATUSES = [
   ['unlabeled', 'Без разметки'],
   ['in_progress', 'В работе'],
@@ -56,9 +56,9 @@ const GalleryImage: React.FC<{
   item: GalleryItem;
   selectedClassIds: number[];
   classNames: Record<number, string>;
-  opacity: number;
+  showAnnotations: boolean;
   modal?: boolean;
-}> = ({ item, selectedClassIds, classNames, opacity, modal = false }) => {
+}> = ({ item, selectedClassIds, classNames, showAnnotations, modal = false }) => {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [viewport, setViewport] = useState({ width: window.innerWidth, height: window.innerHeight });
   const annotations = selectedClassIds.length > 0
@@ -96,13 +96,12 @@ const GalleryImage: React.FC<{
         })}
         src={item.image_url}
       />
-      {dimensions.width > 0 && dimensions.height > 0 && annotations.length > 0 && (
+      {showAnnotations && dimensions.width > 0 && dimensions.height > 0 && annotations.length > 0 && (
         <svg
           aria-hidden="true"
           className="gallery-image__annotations"
           preserveAspectRatio={modal ? 'xMidYMid meet' : 'xMidYMid slice'}
           viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
-          style={{ opacity }}
         >
           {annotations.map((annotation, index) => {
             const colorIndex = (annotation.class_id % ANNOTATION_COLORS.length + ANNOTATION_COLORS.length)
@@ -198,7 +197,6 @@ export const GalleryPage: React.FC = () => {
   const [itemsDatasetId, setItemsDatasetId] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<{ datasetId: string; reloadKey: number; message: string } | null>(null);
-  const [maskOpacity, setMaskOpacity] = useState(0.9);
   const [filter, setFilter] = useState<GalleryFilter>('all');
   const [allItemsCount, setAllItemsCount] = useState(0);
   const [splitFilter, setSplitFilter] = useState<SplitFilter>('all');
@@ -243,6 +241,7 @@ export const GalleryPage: React.FC = () => {
   const classFilterRef = useRef<HTMLDetailsElement>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [showAnnotations, setShowAnnotations] = useState(true);
   const [datasetPrivate, setDatasetPrivate] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState<ExportProgress | null>(null);
@@ -571,7 +570,7 @@ export const GalleryPage: React.FC = () => {
           <button
             className="gallery-button gallery-button--primary"
             disabled={!firstItem}
-            onClick={() => firstItem && navigate(`/datasets/${datasetId}/annotate/${firstItem.sample_id ?? firstItem.id}?split=${firstItem.split || 'train'}&page=${itemsPage}`, { state: {
+            onClick={() => firstItem && navigate(`/datasets/${datasetId}/annotate/${firstItem.sample_id ?? firstItem.id}?split=${splitFilter}&page=${itemsPage}`, { state: {
               sample: { ...firstItem, dataset_id: datasetId }, items: items.map(item => ({ ...item, dataset_id: datasetId })), datasetName: datasetNameState.name, classNames: classCatalog, datasetRole, page: itemsPage, totalSamples: totalItems, labeledSamples: labeledCount,
               filters: { status: statusFilter, objectCount: objectCountFilter, labeled: filter === 'all' ? undefined : filter === 'labeled', classIds: selectedClassIds },
             } })}
@@ -605,17 +604,21 @@ export const GalleryPage: React.FC = () => {
         {([['in_review', 'На проверке'], ['accepted', 'Приняты']] as const).map(([value, label]) => <button key={value} className={`gallery-tab${statusFilter === value ? ' is-active' : ''}`} role="tab" aria-selected={statusFilter === value} type="button" onClick={() => { setPage(1); setFilter('all'); setStatusFilter(value); }}>{label}</button>)}
       </div>
       <div className="gallery-split-tabs" role="group" aria-label="Выборка">{(['all', 'train', 'val', 'test'] as const).map(value => <button key={value} type="button" aria-pressed={splitFilter === value} onClick={() => { setPage(1); setSplitFilter(value); }}>{value === 'all' ? 'Все выборки' : value === 'train' ? 'Train' : value === 'val' ? 'Val' : 'Test'}</button>)}</div>
-      <button className="gallery-button gallery-filter-toggle" type="button" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(value => !value)}><EditorIcon name="filter" />Фильтры</button>
+      <div className="gallery-toolbar__actions">
+        <button
+          className="gallery-button gallery-annotations-toggle"
+          type="button"
+          role="switch"
+          aria-checked={showAnnotations}
+          onClick={() => setShowAnnotations(value => !value)}
+        >
+          <EditorIcon name="eye" />
+          Разметка
+          <span aria-hidden="true">{showAnnotations ? 'Вкл.' : 'Выкл.'}</span>
+        </button>
+        <button className="gallery-button gallery-filter-toggle" type="button" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(value => !value)}><EditorIcon name="filter" />Фильтры</button>
+      </div>
       <div className="gallery-filters" aria-label="Дополнительные фильтры" hidden={!filtersOpen}>
-        <label>
-          Сплит
-          <select value={splitFilter} onChange={(event) => { setPage(1); setSplitFilter(event.target.value as SplitFilter); }}>
-            <option value="all">Все</option>
-            <option value="train">Train</option>
-            <option value="val">Val</option>
-            <option value="test">Test</option>
-          </select>
-        </label>
         <label>
           Статус
           <select value={statusFilter} onChange={(event) => { setPage(1); setStatusFilter(event.target.value); }}>
@@ -668,19 +671,6 @@ export const GalleryPage: React.FC = () => {
             </div>
           </details>
         )}
-          <label className="gallery-opacity">
-            <span>Разметка <strong>{Math.round(maskOpacity * 100)}%</strong></span>
-            <input
-              aria-label="Прозрачность маски"
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={maskOpacity}
-              style={{ '--range-progress': `${maskOpacity * 100}%` } as React.CSSProperties}
-              onChange={(event) => setMaskOpacity(Number(event.target.value))}
-            />
-          </label>
         <button className="gallery-filter-reset" onClick={clearFilters} type="button">Сбросить</button>
       </div>
       </div>
@@ -702,8 +692,8 @@ export const GalleryPage: React.FC = () => {
                     classNames={classCatalog}
                     item={item}
                     key={item.id}
-                    opacity={maskOpacity}
                     selectedClassIds={selectedClassIds}
+                    showAnnotations={showAnnotations}
                   />
                   <span className="gallery-card__count">
                     {getVisibleObjectCount(item)} объектов
@@ -712,7 +702,7 @@ export const GalleryPage: React.FC = () => {
                 <span className="gallery-card__details">
                   <span className="gallery-card__filename" title={item.filename}>{item.filename}</span>
                   <span className="gallery-card__meta">
-                    <span className={`gallery-status gallery-status--${item.status || 'unlabeled'}${isLabeled ? ' gallery-status--labeled' : ''}`}>
+                    <span className="gallery-status" data-frame-status={reviewStatusLabels[item.status || ''] ? item.status : isLabeled ? 'labeled' : 'unlabeled'}>
                       <i aria-hidden="true" />{reviewStatusLabels[item.status || ''] || (isLabeled ? 'Размечено' : 'Без разметки')}
                     </span>
                     <span className="gallery-card__task">{taskLabel(item.task)}</span>
@@ -826,8 +816,8 @@ export const GalleryPage: React.FC = () => {
                   item={activeItem}
                   key={activeItem.id}
                   modal
-                  opacity={maskOpacity}
                   selectedClassIds={selectedClassIds}
+                  showAnnotations={showAnnotations}
                 />
                 <button
                   aria-label="Предыдущий кадр"
@@ -860,7 +850,7 @@ export const GalleryPage: React.FC = () => {
                         split: activeItem.split || 'train',
                         status: activeItem.status || 'unlabeled',
                       };
-                      navigate(`/datasets/${datasetId}/annotate/${activeItem.sample_id}?split=${editorSample.split}&page=${itemsPage}`, {
+                      navigate(`/datasets/${datasetId}/annotate/${activeItem.sample_id}?split=${splitFilter}&page=${itemsPage}`, {
                         state: {
                           sample: editorSample,
                           items: items.map((item) => ({

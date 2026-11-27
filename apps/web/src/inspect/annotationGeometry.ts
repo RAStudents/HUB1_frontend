@@ -26,8 +26,21 @@ export function annotationHandles(annotation: EditableAnnotation, size: ImageSiz
 }
 
 export function editAnnotation<T extends EditableAnnotation>(
-  original: T, start: Point, current: Point, handle: number | 'move', size: ImageSize,
+  original: T, start: Point, current: Point, handle: number | 'move' | 'rotate', size: ImageSize,
 ): T {
+  if (handle === 'rotate') {
+    const { obb } = original;
+    if (!obb || (current.x === obb.x && current.y === obb.y)) return original;
+    const direction = (point: Point) => Math.atan2(
+      (point.y - obb.y) * size.height,
+      (point.x - obb.x) * size.width,
+    );
+    const delta = (direction(current) - direction(start)) * 180 / Math.PI;
+    if (delta === 0) return original;
+    const angle = obb.angle_deg + delta;
+    const angle_deg = ((angle + 180) % 360 + 360) % 360 - 180;
+    return { ...original, obb: { ...obb, angle_deg } };
+  }
   if (handle === 'move') {
     const points = annotationHandles(original, size);
     if (!points.length) return original;

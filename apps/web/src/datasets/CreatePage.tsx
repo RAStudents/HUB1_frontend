@@ -3,8 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { apiClient } from '../api/client';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-
 type Task = 'detect' | 'obb' | 'segment';
 
 type TaskOption = {
@@ -118,9 +116,8 @@ export const CreatePage = () => {
       formData.append('is_private', String(isPrivate));
       formData.append('file', file);
 
-      const token = localStorage.getItem('access_token');
-      const response = await axios.post(`${API_BASE_URL}/datasets/upload`, formData, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      const response = await apiClient.post<ImportJob>('/datasets/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
         onUploadProgress: (progressEvent) => {
           if (!progressEvent.total) return;
           const progress = Math.round((progressEvent.loaded / progressEvent.total) * 100);
@@ -130,14 +127,12 @@ export const CreatePage = () => {
       });
 
       setUploadFinished(true);
-      let importJob = response.data as ImportJob;
+      let importJob = response.data;
       setImportProgress(importJob);
 
       while (importJob.status === 'queued' || importJob.status === 'processing') {
         await wait(1000);
-        const { data } = await apiClient.get<ImportJob>(`/datasets/imports/${importJob.import_id}`, {
-          baseURL: API_BASE_URL,
-        });
+        const { data } = await apiClient.get<ImportJob>(`/datasets/imports/${importJob.import_id}`);
         importJob = data;
         setImportProgress(importJob);
       }

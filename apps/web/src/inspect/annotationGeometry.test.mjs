@@ -36,6 +36,16 @@ test('resizing a rotated box keeps the opposite corner fixed on a non-square ima
   assert.ok(result.obb.height > original.obb.height);
 });
 
+test('rotating on a non-square image changes only the angle and wraps across 180 degrees', () => {
+  const original = { id: 7, class_id: 3, obb: { x: .5, y: .5, width: .2, height: .3, angle_deg: 160 } };
+  const start = { x: .6, y: .5 };
+  const current = { x: .6, y: .7 };
+  const result = editAnnotation(original, start, current, 'rotate', size);
+  assert.deepEqual(result, { ...original, obb: { ...original.obb, angle_deg: -155 } });
+  assert.equal(original.obb.angle_deg, 160);
+  assert.equal(editAnnotation(original, start, start, 'rotate', size), original);
+});
+
 test('crossing a box corner cannot invert or collapse it', () => {
   const original = { class_id: 1, box: { x: .5, y: .5, width: .2, height: .2 } };
   const result = editAnnotation(original, { x: .6, y: .6 }, { x: 0, y: 0 }, 2, size);

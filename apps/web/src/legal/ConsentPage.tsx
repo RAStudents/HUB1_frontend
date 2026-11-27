@@ -1,20 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { apiClient } from '../api/client';
 import { getApiErrorMessage } from '../api/errorMessage';
+import { loadConsentStatus, saveConsentAction, type ConsentAction, type ConsentStatus } from './consentApi';
 import { renderLegalText } from './renderLegalText';
 import './consent.css';
-
-type ConsentAction = 'accepted' | 'rejected' | 'withdrawn';
-
-interface ConsentStatus {
-  version: string;
-  consent_text: string;
-  policy_link_text: string;
-  policy_url: string;
-  action: ConsentAction | null;
-  recorded_at: string | null;
-}
 
 const CONSENT_TITLE = 'Согласие на обработку электронных пользовательских данных';
 
@@ -31,8 +20,8 @@ export const ConsentPage = () => {
 
   useEffect(() => {
     let active = true;
-    void apiClient.get<ConsentStatus>('/consent')
-      .then(({ data }) => {
+    void loadConsentStatus()
+      .then((data) => {
         if (active) setConsent(data);
       })
       .catch((requestError: unknown) => {
@@ -51,9 +40,7 @@ export const ConsentPage = () => {
     setError(null);
     setIsSubmitting(true);
     try {
-      const { data } = await apiClient.post<ConsentStatus>('/consent', { action });
-      setConsent(data);
-      window.dispatchEvent(new CustomEvent<ConsentAction>('consent:changed', { detail: action }));
+      setConsent(await saveConsentAction(action));
     } catch (requestError: unknown) {
       console.error('Не удалось сохранить действие по согласию:', requestError);
       setError(getApiErrorMessage(requestError, 'Не удалось сохранить действие. Попробуйте ещё раз.'));

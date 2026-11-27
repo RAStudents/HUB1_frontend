@@ -3,7 +3,7 @@ import { clearSession, getSession, storeSession } from '../auth/session';
 import type { AuthResponse } from './types';
 
 const options = {
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
+  baseURL: import.meta.env.VITE_API_URL || `http://${window.location.hostname === '127.0.0.1' ? '127.0.0.1' : 'localhost'}:8000/api`,
   headers: { 'Content-Type': 'application/json' },
 };
 export const apiClient = axios.create(options);

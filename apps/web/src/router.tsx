@@ -17,6 +17,9 @@ import { ProfilePage } from './profile/ProfilePage';
 import { UserAvatar } from './auth/UserAvatar';
 import { NotificationsPage } from './notifications/NotificationsPage';
 import { ReviewPage } from './review/ReviewPage';
+import { ConsentBanner } from './legal/ConsentBanner';
+import { ConsentPage } from './legal/ConsentPage';
+import { PrivacyPolicyPage } from './legal/PrivacyPolicyPage';
 import { apiClient } from './api/client';
 import { useEffect, useState } from 'react';
 
@@ -168,6 +171,13 @@ const Layout = () => {
   );
 };
 
+const RootLayout = () => (
+  <>
+    <ConsentBanner />
+    <Outlet />
+  </>
+);
+
 // ============ ROUTE GUARDS ============
 const ProtectedRoute = ({ children }: { children: ReactNode }) => {
   const { user, isLoading } = useAuth();
@@ -190,25 +200,32 @@ const DatasetRoute = () => {
 
 // ============ ROUTER ============
 export const router = createBrowserRouter([
-  { path: '/login', element: <GuestRoute><LoginPage /></GuestRoute> },
-  { path: '/register', element: <GuestRoute><RegisterPage /></GuestRoute> },
-  { path: '/auth/yandex/callback', element: <YandexCallbackPage /> },
   {
-    path: '/',
-    element: <ProtectedRoute><Layout /></ProtectedRoute>,
+    element: <RootLayout />,
     children: [
-      { index: true, element: <DashboardPage /> },
-      { path: 'profile', element: <ProfilePage /> },
-      { path: 'notifications', element: <NotificationsPage /> },
-      { path: 'review', element: <ReviewPage /> },
-      { path: 'datasets/create', element: <CreatePage /> },
-      { path: 'datasets/:datasetId', element: <DatasetRoute />, children: [
-        { path: 'upload', element: <UploadFramesPage /> },
-        { path: 'statistics', element: <DatasetStatisticsPage /> },
-        { path: 'members', element: <MembersPage /> },
-        { path: 'gallery', element: <GalleryPage /> },
-        { path: 'annotate/:sampleId', element: <AnnotationEditorPage /> },
-      ] },
+      { path: '/consent', element: <ConsentPage /> },
+      { path: '/privacy-policy', element: <PrivacyPolicyPage /> },
+      { path: '/login', element: <GuestRoute><LoginPage /></GuestRoute> },
+      { path: '/register', element: <GuestRoute><RegisterPage /></GuestRoute> },
+      { path: '/auth/yandex/callback', element: <YandexCallbackPage /> },
+      {
+        path: '/',
+        element: <ProtectedRoute><Layout /></ProtectedRoute>,
+        children: [
+          { index: true, element: <DashboardPage /> },
+          { path: 'profile', element: <ProfilePage /> },
+          { path: 'notifications', element: <NotificationsPage /> },
+          { path: 'review', element: <ReviewPage /> },
+          { path: 'datasets/create', element: <CreatePage /> },
+          { path: 'datasets/:datasetId', element: <DatasetRoute />, children: [
+            { path: 'upload', element: <UploadFramesPage /> },
+            { path: 'statistics', element: <DatasetStatisticsPage /> },
+            { path: 'members', element: <MembersPage /> },
+            { path: 'gallery', element: <GalleryPage /> },
+            { path: 'annotate/:sampleId', element: <AnnotationEditorPage /> },
+          ] },
+        ],
+      },
     ],
   },
 ]);

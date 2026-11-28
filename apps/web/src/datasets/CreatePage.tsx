@@ -4,6 +4,7 @@ import axios from 'axios';
 import { apiClient } from '../api/client';
 
 type Task = 'detect' | 'obb' | 'segment';
+const MAX_DATASET_BYTES = 5 * 1024 * 1024 * 1024;
 
 type TaskOption = {
   value: Task;
@@ -102,6 +103,10 @@ export const CreatePage = () => {
     }
     if (!file.name.toLowerCase().endsWith('.zip')) {
       setError('Поддерживаются только ZIP-архивы');
+      return;
+    }
+    if (file.size > MAX_DATASET_BYTES) {
+      setError('Размер ZIP-архива не должен превышать 5 ГиБ');
       return;
     }
 
@@ -278,7 +283,7 @@ export const CreatePage = () => {
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 8v5m0 3h.01" /></svg>
             {inputMode === 'manual'
               ? 'По одному классу на строку. Порядок — индекс в YOLO. Для загрузки выберите ZIP-архив.'
-              : 'Загрузите ZIP со всем датасетом, включая конфигурацию, изображения и разметку.'}
+              : 'Загрузите ZIP со всем датасетом, включая конфигурацию, изображения и разметку. Максимум 5 ГиБ для архива и распакованных файлов.'}
           </div>
         </div>
 

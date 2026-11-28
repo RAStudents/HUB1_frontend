@@ -50,8 +50,8 @@
 
 .dataset-statistics {
   --heatmap-empty: var(--app-surface);
-  --heatmap-low: #5a5a5a;
-  --heatmap-high: #ededed;
+  --heatmap-low: color-mix(in oklab, #5a5a5a, var(--heatmap-class-color, #5a5a5a) 25%);
+  --heatmap-high: var(--heatmap-class-color, #ededed);
   display: grid;
   gap: 14px;
   margin: -8px 0 25px;
@@ -174,7 +174,14 @@
 .dataset-stat-status i { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 2px; }
 .dataset-stat-status strong { color: var(--app-text); font-size: 10px; }
 
-.dataset-stat-class-list { display: grid; gap: 7px; max-height: 140px; overflow-y: auto; scrollbar-width: thin; }
+.dataset-stat-class-list {
+  display: grid;
+  gap: 7px;
+  max-height: 140px;
+  overflow-y: auto;
+  padding-inline-end: 12px;
+  scrollbar-width: thin;
+}
 .dataset-stat-class { display: grid; gap: 5px; }
 .dataset-stat-class > div { display: flex; justify-content: space-between; gap: 8px; color: var(--app-text-secondary); font-size: 10px; }
 .dataset-stat-class > div strong { color: var(--app-text); font-weight: 600; }
@@ -246,20 +253,10 @@
 
 .gallery-filters {
   display: flex;
+  min-width: 0;
   flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 10px;
-  justify-content: flex-end;
-  margin: 0 0 0 auto;
-}
-
-.gallery-filters > label {
-  display: flex;
-  min-width: 145px;
-  flex-direction: column;
-  gap: 5px;
-  color: var(--app-muted);
-  font-size: 11px;
+  align-items: center;
+  gap: 6px;
 }
 
 .gallery-filters select,
@@ -271,15 +268,16 @@
   background: var(--app-input);
   color: var(--app-text);
   font: inherit;
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .gallery-filters select {
   appearance: none;
-  padding-right: 30px;
+  max-width: 100%;
+  padding-inline: 8px 22px;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%239ea6ab' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3 4.5 3 3 3-3'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 10px center;
+  background-position: right 6px center;
   cursor: pointer;
 }
 
@@ -295,7 +293,6 @@
 
 .gallery-class-filter {
   position: relative;
-  min-width: 145px;
   color: var(--app-text);
   font-size: 12px;
 }
@@ -305,10 +302,10 @@
   min-width: 100%;
   align-items: center;
   justify-content: space-between;
-  padding-right: 30px;
+  padding-inline: 8px 22px;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%239ea6ab' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3 4.5 3 3 3-3'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 10px center;
+  background-position: right 6px center;
   cursor: pointer;
   list-style: none;
 }
@@ -325,7 +322,7 @@
   position: absolute;
   z-index: 3;
   top: calc(100% + 5px);
-  left: 0;
+  inset-inline-end: 0;
   display: flex;
   flex-direction: column;
   min-width: 190px;
@@ -399,7 +396,7 @@
   border-radius: 5px;
   background: transparent;
   color: var(--app-muted);
-  font-size: 12px;
+  font-size: 10px;
   cursor: pointer;
 }
 
@@ -762,25 +759,22 @@
   .gallery-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
-@media (max-width: 1100px) {
-  .gallery-toolbar { align-items: stretch; flex-direction: column; gap: 10px; }
-  .gallery-tabs { min-height: 42px; margin-bottom: 0; }
-  .gallery-filters { justify-content: flex-start; margin: 0; }
-}
-
-@media (max-width: 1100px) {
-  .gallery-toolbar { align-items: stretch; flex-direction: column; gap: 10px; }
-  .gallery-tabs { min-height: 42px; margin-bottom: 0; }
-  .gallery-filters { justify-content: flex-start; margin: 0; }
-}
-
 @media (max-width: 720px) {
   .gallery-heading { align-items: flex-start; flex-direction: column; gap: 18px; }
   .gallery-heading__actions { width: 100%; align-items: stretch; }
   .gallery-toolbar { padding-bottom: 13px; }
   .gallery-tabs { min-height: 42px; gap: 18px; overflow-x: auto; }
-  .gallery-filters { justify-content: flex-start; margin: 0; }
   .gallery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+}
+
+@media (max-width: 520px) {
+  .gallery-filters {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .gallery-class-filter__options {
+    inset-inline: 0 auto;
+  }
 }
 
 @media (max-width: 460px) {

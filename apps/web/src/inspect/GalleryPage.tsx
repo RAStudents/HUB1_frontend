@@ -604,37 +604,17 @@ export const GalleryPage: React.FC = () => {
         {([['in_review', 'На проверке'], ['accepted', 'Приняты']] as const).map(([value, label]) => <button key={value} className={`gallery-tab${statusFilter === value ? ' is-active' : ''}`} role="tab" aria-selected={statusFilter === value} type="button" onClick={() => { setPage(1); setFilter('all'); setStatusFilter(value); }}>{label}</button>)}
       </div>
       <div className="gallery-split-tabs" role="group" aria-label="Выборка">{(['all', 'train', 'val', 'test'] as const).map(value => <button key={value} type="button" aria-pressed={splitFilter === value} onClick={() => { setPage(1); setSplitFilter(value); }}>{value === 'all' ? 'Все выборки' : value === 'train' ? 'Train' : value === 'val' ? 'Val' : 'Test'}</button>)}</div>
-      <div className="gallery-toolbar__actions">
-        <button
-          className="gallery-button gallery-annotations-toggle"
-          type="button"
-          role="switch"
-          aria-checked={showAnnotations}
-          onClick={() => setShowAnnotations(value => !value)}
-        >
-          <EditorIcon name="eye" />
-          Разметка
-          <span aria-hidden="true">{showAnnotations ? 'Вкл.' : 'Выкл.'}</span>
-        </button>
-        <button className="gallery-button gallery-filter-toggle" type="button" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(value => !value)}><EditorIcon name="filter" />Фильтры</button>
-      </div>
-      <div className="gallery-filters" aria-label="Дополнительные фильтры" hidden={!filtersOpen}>
-        <label>
-          Статус
-          <select value={statusFilter} onChange={(event) => { setPage(1); setStatusFilter(event.target.value); }}>
-            <option value="all">Все статусы</option>
-            {REVIEW_STATUSES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
-        </label>
-        <label>
-          Разметок на кадре
-          <select value={objectCountFilter} onChange={(event) => { setPage(1); setObjectCountFilter(event.target.value as ObjectCountFilter); }}>
-            <option value="all">Любое количество</option>
-            <option value="none">Нет разметок</option>
-            <option value="one">Одна</option>
-            <option value="multiple">Несколько</option>
-          </select>
-        </label>
+      <div id="gallery-filters" className="gallery-filters" role="group" aria-label="Дополнительные фильтры" hidden={!filtersOpen}>
+        <select aria-label="Статус" value={statusFilter} onChange={(event) => { setPage(1); setStatusFilter(event.target.value); }}>
+          <option value="all">Все статусы</option>
+          {REVIEW_STATUSES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        </select>
+        <select aria-label="Разметок на кадре" value={objectCountFilter} onChange={(event) => { setPage(1); setObjectCountFilter(event.target.value as ObjectCountFilter); }}>
+          <option value="all">Число разметок</option>
+          <option value="none">Нет разметок</option>
+          <option value="one">Одна разметка</option>
+          <option value="multiple">Несколько разметок</option>
+        </select>
         {availableClasses.length > 0 && (
           <details className="gallery-class-filter" ref={classFilterRef}>
             <summary>Классы{pendingClassIds.length > 0 ? `: ${pendingClassIds.length}` : ''}</summary>
@@ -672,6 +652,20 @@ export const GalleryPage: React.FC = () => {
           </details>
         )}
         <button className="gallery-filter-reset" onClick={clearFilters} type="button">Сбросить</button>
+      </div>
+      <div className="gallery-toolbar__actions">
+        <button
+          className="gallery-button gallery-annotations-toggle"
+          type="button"
+          role="switch"
+          aria-checked={showAnnotations}
+          onClick={() => setShowAnnotations(value => !value)}
+        >
+          <EditorIcon name="eye" />
+          Разметка
+          <span aria-hidden="true">{showAnnotations ? 'Вкл.' : 'Выкл.'}</span>
+        </button>
+        <button className="gallery-button gallery-filter-toggle" type="button" aria-controls="gallery-filters" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(value => !value)}><EditorIcon name="filter" />Фильтры</button>
       </div>
       </div>
       <div className={`gallery-results${loading ? ' is-loading' : ''}`} aria-busy={loading}>

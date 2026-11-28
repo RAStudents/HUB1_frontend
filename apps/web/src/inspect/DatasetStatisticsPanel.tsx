@@ -45,6 +45,7 @@ const STATUSES = [
 ] as const;
 
 const CLASS_COLORS = ['var(--app-accent)', '#ffad36', '#4b9dff', '#35c99a', '#a779ef', '#e879b9'];
+const getStatisticsClassColor = (classId: number) => CLASS_COLORS[classId % CLASS_COLORS.length];
 
 type ChartType = 'bars' | 'donut' | 'line';
 type SortOrder = 'descending' | 'ascending';
@@ -163,7 +164,7 @@ function StatisticsColumn({ title, data, classOrder, chartType, gridSize, grid, 
     id: class_id,
     label: class_name,
     count: counts.get(class_id) ?? 0,
-    color: CLASS_COLORS[class_id % CLASS_COLORS.length],
+    color: getStatisticsClassColor(class_id),
   }));
   const maxClassCount = classes.reduce((max, item) => Math.max(max, item.count), 1);
 
@@ -279,9 +280,11 @@ export const DatasetStatisticsPanel = ({ datasetId, reloadKey }: Props) => {
     return { key, title, data, ...getHeatmap(data, heatmapClass) };
   }) : [];
   const peak = Math.max(0, ...columns.map(column => column.peak));
+  const heatmapColor = heatmapClass === 'all' ? undefined : getStatisticsClassColor(Number(heatmapClass));
 
   return (
-    <section className="dataset-statistics" aria-labelledby="dataset-statistics-title" aria-busy={loading}>
+    <section className="dataset-statistics" aria-labelledby="dataset-statistics-title" aria-busy={loading}
+      style={{ '--heatmap-class-color': heatmapColor } as CSSProperties}>
       <header className="dataset-statistics__header">
         <h2 id="dataset-statistics-title">Сравнение выборок</h2>
         <button
